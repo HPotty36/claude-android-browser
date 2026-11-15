@@ -1,6 +1,8 @@
 package dev.agentbrowser.settings
 
 import android.content.Context
+import dev.agentbrowser.browser.SearchEngine
+import dev.agentbrowser.browser.searchEngineById
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -19,6 +21,15 @@ class AppSettings(context: Context, private val secrets: SecretStore, prefsName:
     private var apiKey: String? = prefs.getString("api_key_enc", null)?.let { runCatching { secrets.decrypt(it) }.getOrNull() }
     private val _apiKeyHint = MutableStateFlow(hint())
     private val _model = MutableStateFlow(prefs.getString("model", null) ?: DEFAULT_MODEL)
+
+    private val _searchEngine = MutableStateFlow(searchEngineById(prefs.getString("search_engine", null)))
+    val searchEngine: StateFlow<SearchEngine> = _searchEngine
+
+    fun setSearchEngine(id: String) {
+        val engine = searchEngineById(id)
+        prefs.edit().putString("search_engine", engine.id).apply()
+        _searchEngine.value = engine
+    }
 
     /** Last four characters of the saved key, or null when none is saved. */
     val apiKeyHint: StateFlow<String?> = _apiKeyHint

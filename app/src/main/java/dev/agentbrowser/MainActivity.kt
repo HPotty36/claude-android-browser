@@ -68,12 +68,14 @@ class MainActivity : ComponentActivity() {
                                 val url by app.browser.url.collectAsState()
                                 val title by app.browser.title.collectAsState()
                                 val bookmarks by app.bookmarks.all.collectAsState()
+                                val searchEngine by app.settings.searchEngine.collectAsState()
                                 val saved = bookmarks.any { it.url == url }
                                 BrowserScreen(
                                     controller = app.browser,
                                     chat = app.chat,
                                     loginPrompts = app.loginPrompts,
                                     shortcuts = bookmarks.map { Shortcut(it.title, it.url) },
+                                    searchUrl = searchEngine.queryUrl,
                                     isBookmarked = saved,
                                     onToggleBookmark = {
                                         scope.launch {

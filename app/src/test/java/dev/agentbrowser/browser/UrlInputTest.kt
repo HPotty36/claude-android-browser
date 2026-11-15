@@ -19,4 +19,15 @@ class UrlInputTest {
     @Test fun displayHostKeepsPort() = assertEquals("192.168.0.1:8080", displayHost("http://192.168.0.1:8080/x"))
     @Test fun displayHostFallsBackToInput() = assertEquals("about:blank", displayHost("about:blank"))
     @Test fun displayHostOfEmptyIsEmpty() = assertEquals("", displayHost(""))
+
+    @Test fun searchesWithTheGivenEngine() = assertEquals(
+        "https://search.naver.com/search.naver?query=%EB%82%A0%EC%94%A8",
+        toUrl("날씨", searchEngineById("naver").queryUrl),
+    )
+    @Test fun addressesIgnoreTheEngine() =
+        assertEquals("https://naver.com", toUrl("naver.com", searchEngineById("google").queryUrl))
+    @Test fun unknownEngineFallsBackToTheDefault() = assertEquals("duckduckgo", searchEngineById("nope").id)
+    @Test fun noEngineIdFallsBackToTheDefault() = assertEquals("duckduckgo", searchEngineById(null).id)
+    @Test fun everyEngineHasAUniqueId() = assertEquals(SEARCH_ENGINES.size, SEARCH_ENGINES.map { it.id }.toSet().size)
+    @Test fun everyEngineSearchesOverHttps() = assertEquals(true, SEARCH_ENGINES.all { it.queryUrl.startsWith("https://") })
 }

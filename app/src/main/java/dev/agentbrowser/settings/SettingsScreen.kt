@@ -43,6 +43,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import dev.agentbrowser.browser.SEARCH_ENGINES
+import dev.agentbrowser.browser.displayHost
 import dev.agentbrowser.ui.ScreenScaffold
 import dev.agentbrowser.ui.SectionLabel
 
@@ -58,6 +60,8 @@ fun SettingsScreen(
             ApiKeyField(settings)
             SectionLabel("모델")
             ModelPicker(settings)
+            SectionLabel("검색 엔진")
+            SearchEnginePicker(settings)
             extraSections(snackbar)
             Spacer(Modifier.height(24.dp))
         }
@@ -105,6 +109,23 @@ private fun ApiKeyField(settings: AppSettings) {
                 enabled = draft.isNotBlank(),
             ) { Text("저장") }
         }
+    }
+}
+
+@Composable
+private fun SearchEnginePicker(settings: AppSettings) {
+    val current by settings.searchEngine.collectAsState()
+    SEARCH_ENGINES.forEach { engine ->
+        val selected = engine.id == current.id
+        ListItem(
+            headlineContent = { Text(engine.name) },
+            supportingContent = { Text(displayHost(engine.queryUrl)) },
+            leadingContent = { RadioButton(selected = selected, onClick = null) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) {
+                settings.setSearchEngine(engine.id)
+            },
+        )
     }
 }
 

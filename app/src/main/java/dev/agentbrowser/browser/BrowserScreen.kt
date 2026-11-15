@@ -107,6 +107,7 @@ fun BrowserScreen(
     chat: ChatViewModel,
     loginPrompts: LoginPromptDelegate,
     shortcuts: List<Shortcut>,
+    searchUrl: String,
     isBookmarked: Boolean,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
@@ -203,6 +204,7 @@ fun BrowserScreen(
         if (!fullChat) {
             CommandBar(
                 controller = controller,
+                searchUrl = searchUrl,
                 onStartPage = onStartPage,
                 chatOpen = chatOpen,
                 agentRunning = agentRunning,
@@ -220,6 +222,7 @@ fun BrowserScreen(
 @Composable
 private fun CommandBar(
     controller: BrowserController,
+    searchUrl: String,
     onStartPage: Boolean,
     chatOpen: Boolean,
     agentRunning: Boolean,
@@ -264,7 +267,7 @@ private fun CommandBar(
                     minHeight = 48.dp,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = {
-                        if (draft.text.isNotBlank()) controller.load(toUrl(draft.text))
+                        if (draft.text.isNotBlank()) controller.load(toUrl(draft.text, searchUrl))
                         focus.clearFocus()
                         editing = null
                     }),

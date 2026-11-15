@@ -22,8 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,8 +32,8 @@ import dev.agentbrowser.R
 data class Shortcut(val title: String, val url: String)
 
 /**
- * What a blank tab shows: the mark at the centre with its ring echoed outward across the page, and the
- * user's own bookmarks under it when there are any. Typing happens in the bar below.
+ * What a blank tab shows: the mark at the centre, and the user's own bookmarks under it when there are
+ * any. Typing happens in the bar below.
  */
 @Composable
 fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier: Modifier = Modifier) {
@@ -44,26 +42,12 @@ fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier
     Surface(color = colors.surface, modifier = modifier.fillMaxSize().clip(RoundedCornerShape(0.dp))) {
         Column(Modifier.fillMaxSize().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.weight(if (shortcuts.isEmpty()) 1f else 0.7f))
-            Box(
-                Modifier.size(128.dp).drawBehind {
-                    // The mark's ring, repeated outward and fading, fills the page without a word.
-                    listOf(120.dp to 1f, 200.dp to 0.7f, 300.dp to 0.45f, 420.dp to 0.25f).forEach { (radius, alpha) ->
-                        drawCircle(
-                            color = colors.outlineVariant.copy(alpha = alpha),
-                            radius = radius.toPx(),
-                            style = Stroke(width = 1.dp.toPx()),
-                        )
-                    }
-                },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_mark),
-                    contentDescription = null,
-                    tint = colors.primary,
-                    modifier = Modifier.size(128.dp),
-                )
-            }
+            Icon(
+                painterResource(R.drawable.ic_mark),
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(128.dp),
+            )
             if (shortcuts.isNotEmpty()) {
                 Spacer(Modifier.height(56.dp))
                 shortcuts.chunked(4).forEach { row ->

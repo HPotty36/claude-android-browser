@@ -49,4 +49,13 @@ class SecretStoreTest {
         settings.setModel("claude-opus-5-5")
         assertTrue(AppSettings(context, secrets, prefsName = "settings_test2").modelBlocking() == "claude-opus-5-5")
     }
+
+    @Test fun settingsSearchEngineDefaultsAndPersists() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        context.getSharedPreferences("settings_test3", 0).edit().clear().commit()
+        val settings = AppSettings(context, secrets, prefsName = "settings_test3")
+        assertEquals("duckduckgo", settings.searchEngine.value.id)
+        settings.setSearchEngine("google")
+        assertEquals("google", AppSettings(context, secrets, prefsName = "settings_test3").searchEngine.value.id)
+    }
 }
