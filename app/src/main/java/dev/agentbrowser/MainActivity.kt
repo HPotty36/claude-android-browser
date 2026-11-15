@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.agentbrowser.bookmarks.BookmarksScreen
 import dev.agentbrowser.browser.BrowserScreen
+import dev.agentbrowser.browser.Shortcut
 import dev.agentbrowser.passwords.PasswordsScreen
 import dev.agentbrowser.settings.ImportSection
 import dev.agentbrowser.settings.SettingsScreen
@@ -37,8 +38,7 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             AppTheme {
                 // The surface fills the window so the system bars take the chrome's colour.
-                val chrome = if (screen == "browser") MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface
-                Surface(Modifier.fillMaxSize(), color = chrome) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
                     Box(Modifier.safeDrawingPadding()) {
                         when (screen) {
                             "settings" -> {
@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
                                     controller = app.browser,
                                     chat = app.chat,
                                     loginPrompts = app.loginPrompts,
+                                    shortcuts = bookmarks.map { Shortcut(it.title, it.url) },
                                     isBookmarked = saved,
                                     onToggleBookmark = {
                                         scope.launch {

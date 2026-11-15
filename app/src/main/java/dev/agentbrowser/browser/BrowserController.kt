@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 
-const val HOME_URL = "https://www.google.com"
+/** The blank page the start screen is drawn over. */
+const val HOME_URL = "about:blank"
 
 class BrowserController(context: Context) {
     val runtime: GeckoRuntime = GeckoRuntime.create(context.applicationContext)
@@ -104,6 +105,7 @@ class BrowserController(context: Context) {
     }
     fun back() = session.goBack()
     fun forward() = session.goForward()
+    fun home() = load(HOME_URL)
     fun reload() = session.reload()
     fun stop() = session.stop()
 }
