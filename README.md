@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.svg" width="112" height="112" alt="Agentic Browser logo">
+
 # Agentic Browser
 
 **An Android browser you can hand over to Claude.**<br>

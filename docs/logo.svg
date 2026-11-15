@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="128" height="128" role="img" aria-label="Agentic Browser logo">
+  <!-- The app icon: the same paths as app/src/main/res/drawable/ic_launcher_foreground.xml -->
+  <rect x="18" y="18" width="72" height="72" rx="16" fill="#000000"/>
+  <g transform="translate(26.4 21.84) scale(2.4)">
+    <path d="M12.18,16.78A6.5,6.5 0 1 1 16.78 12.18" fill="none" stroke="#7FD6C2" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M11.87,11.87L11.87,21.44L14.13,19.26L15.77,22.81L17.55,21.99L15.94,18.5L19.05,18.5Z" fill="#7FD6C2"/>
+  </g>
+</svg>
