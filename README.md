@@ -14,7 +14,7 @@ An Android browser you can hand over to Claude: it reads the page, clicks, types
 
 <img src="docs/screenshots/browser.png" width="250" alt="브라우저 화면">&nbsp;
 <img src="docs/screenshots/chat.png" width="250" alt="Claude 패널">&nbsp;
-<img src="docs/screenshots/settings.png" width="250" alt="설정 화면">
+<img src="docs/screenshots/chat-full.png" width="250" alt="전체 화면 Claude 패널">
 
 [내려받기](#설치) · [쓰는 법](#쓰는-법) · [동작 방식](#동작-방식) · [안전장치](#안전장치) · [직접 빌드](#직접-빌드)
 
@@ -33,6 +33,7 @@ An Android browser you can hand over to Claude: it reads the page, clicks, types
 | --- | --- |
 | **페이지 조작** | 읽기, 클릭, 입력, 스크롤, 이동, 화면 캡처. 지금 건드리는 요소에 테두리가 표시됩니다. |
 | **확인 절차** | 결제, 주문, 전송, 삭제, 계정 설정 변경은 "진행"을 눌러야 실행됩니다. |
+| **패널 크기 조절** | Claude 패널은 화면 아래 절반에 뜨고, 버튼 하나로 전체 화면까지 키울 수 있습니다. |
 | **언제든 중지** | 작업 중에는 중지 버튼이 항상 화면에 있고, 한 번의 지시에서 동작은 최대 25회입니다. |
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |
 | **Chrome에서 가져오기** | 북마크(HTML)와 비밀번호(CSV)를 가져오고, 로그인 화면에서 자동으로 채웁니다. |
