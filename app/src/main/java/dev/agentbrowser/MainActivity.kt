@@ -29,6 +29,8 @@ import dev.agentbrowser.settings.SettingsScreen
 import dev.agentbrowser.ui.AppTheme
 import dev.agentbrowser.ui.LocalStrings
 import dev.agentbrowser.ui.stringsFor
+import dev.agentbrowser.update.UpdateSection
+import dev.agentbrowser.update.hasUpdate
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -37,7 +39,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as App
-        if (savedInstanceState == null) openLink(intent)
+        if (savedInstanceState == null) {
+            openLink(intent)
+            app.scope.launch { app.updater.checkIfDue(System.currentTimeMillis()) }
+        }
         setContent {
             var screen by rememberSaveable { mutableStateOf("browser") }
             val scope = rememberCoroutineScope()
@@ -53,6 +58,7 @@ class MainActivity : ComponentActivity() {
                                 BackHandler { screen = "browser" }
                                 SettingsScreen(app.settings, onBack = { screen = "browser" }) { snackbar ->
                                     ImportSection(app.bookmarks, app.logins, snackbar, onShowPasswords = { screen = "passwords" })
+                                    UpdateSection(app.updater, BuildConfig.VERSION_NAME, app.scope)
                                 }
                             }
                             "passwords" -> {
@@ -77,6 +83,7 @@ class MainActivity : ComponentActivity() {
                                 val bookmarks by app.bookmarks.all.collectAsState()
                                 val searchEngine by app.settings.searchEngine.collectAsState()
                                 val saved = bookmarks.any { it.url == url }
+                                val updateState by app.updater.state.collectAsState()
                                 BrowserScreen(
                                     controller = app.browser,
                                     chat = app.chat,
@@ -84,6 +91,7 @@ class MainActivity : ComponentActivity() {
                                     shortcuts = bookmarks.map { Shortcut(it.title, it.url) },
                                     searchUrl = searchEngine.queryUrl,
                                     isBookmarked = saved,
+                                    updateAvailable = updateState.hasUpdate,
                                     onToggleBookmark = {
                                         scope.launch {
                                             if (saved) app.bookmarks.deleteByUrl(url) else app.bookmarks.add(title, url)

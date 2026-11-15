@@ -35,6 +35,13 @@ class StringsTest {
         assertEquals("Imported 1 password (4 skipped)", En.importedPasswords(1, 4))
     }
 
+    @Test fun updateStringsCarryTheirNumbers() {
+        assertEquals("Version 0.5.0 is available", En.updateAvailable("0.5.0"))
+        assertEquals("새 버전 0.5.0", Ko.updateAvailable("0.5.0"))
+        assertEquals("Download and install (100 MB)", En.downloadUpdate(100))
+        assertEquals("다운로드 중… 42%", Ko.downloadingUpdate(42))
+    }
+
     @Test fun actionsAreDescribedInTheChosenLanguage() {
         assertEquals("Click 'Search'", En.actionClick("Search"))
         assertEquals("'검색' 클릭", Ko.actionClick("검색"))

@@ -22,8 +22,8 @@ android {
         applicationId = "dev.agentbrowser"
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.4.0"
+        versionCode = 10
+        versionName = "0.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -45,7 +45,10 @@ android {
             signingConfig = signingConfigs.getByName(if (keystoreProps.containsKey("storeFile")) "release" else "debug")
         }
     }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     // Compress the engine's native libraries: the APK is about half the size to download.
     packaging { jniLibs { useLegacyPackaging = true } }
     compileOptions {

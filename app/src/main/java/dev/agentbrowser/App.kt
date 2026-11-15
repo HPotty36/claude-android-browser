@@ -12,6 +12,9 @@ import dev.agentbrowser.passwords.LoginPromptDelegate
 import dev.agentbrowser.passwords.LoginRepository
 import dev.agentbrowser.settings.AppSettings
 import dev.agentbrowser.settings.SecretStore
+import dev.agentbrowser.update.Updater
+import dev.agentbrowser.update.installApk
+import java.io.File
 import kotlinx.coroutines.MainScope
 
 class App : Application() {
@@ -30,6 +33,18 @@ class App : Application() {
             controller.runtime.autocompleteStorageDelegate = GeckoLoginStorage(logins, scope)
             controller.promptDelegate = loginPrompts
         }
+    }
+
+    val updater: Updater by lazy {
+        Updater(
+            installedVersion = BuildConfig.VERSION_NAME,
+            // A debug build is a different app id; the release APK would install beside it, not over it.
+            enabled = !BuildConfig.DEBUG,
+            dir = File(cacheDir, "update"),
+            install = { installApk(this, it) },
+            lastCheck = { settings.lastUpdateCheck },
+            saveLastCheck = { settings.lastUpdateCheck = it },
+        )
     }
 
     val chat: ChatViewModel by lazy {

@@ -44,6 +44,7 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 | **Google sign-in** | Built on the Firefox engine (GeckoView), so the Google sign-in that WebView apps are refused works. |
 | **Import from Chrome** | Bookmarks (HTML) and passwords (CSV), with saved logins filled in on sign-in pages. |
 | **Kept on the device** | The API key and passwords are encrypted with an Android Keystore key and never leave the phone. |
+| **Updates itself** | Checks GitHub for a new release once a day and from settings, then downloads and installs it in the app. |
 | **English and Korean** | Follows the system language, or pick one in settings. Claude answers in the same language. |
 
 ## Install
@@ -52,6 +53,8 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 2. Open the file on your phone. The first time, Android asks you to allow installs from that source.
 
 Runs on arm64 devices with Android 8.0 or later. The APK is about 100 MB because it carries the browser engine.
+
+Later versions install from inside the app: **Settings → Update**. Android asks once to let the app install updates, and accepts only an APK signed with the same key as the one installed.
 
 ## Usage
 
@@ -107,6 +110,7 @@ Claude is sent a numbered text list of the buttons, links and inputs rather than
 | `chat/` | The Claude panel |
 | `bookmarks/`, `passwords/` | Chrome file parsers, storage, autofill |
 | `settings/` | Encrypted API key, model, search engine, language, import |
+| `update/` | Release check, APK download, hand-off to the system installer |
 | `ui/` | Theme and every string in both languages |
 
 ## Safety
@@ -115,6 +119,7 @@ Claude is sent a numbered text list of the buttons, links and inputs rather than
 - **Confirmation has two layers.** An action is confirmed when Claude marks it risky, and also when the button's label says pay, order, send, delete or the like.
 - **Text on the page is not treated as instructions.** No defence against prompt injection is complete, so on accounts that matter, read the confirmation before you continue.
 - **Page content is sent to the Anthropic API only while Claude is working** on your request.
+- **The install permission is used only for the app's own updates**, downloaded from this repository's releases and checked against the size and SHA-256 GitHub lists.
 
 ## Known limits
 
@@ -186,6 +191,7 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |
 | **Chrome에서 가져오기** | 북마크(HTML)와 비밀번호(CSV)를 가져오고, 로그인 화면에서 자동으로 채웁니다. |
 | **기기 안에 보관** | API 키와 비밀번호는 Android Keystore 키로 암호화해 기기에만 저장합니다. |
+| **앱 안에서 업데이트** | 하루에 한 번, 그리고 설정에서 누를 때 GitHub의 새 릴리스를 확인하고 앱 안에서 내려받아 설치합니다. |
 | **한국어와 영어** | 시스템 언어를 따르거나 설정에서 고릅니다. Claude도 같은 언어로 답합니다. |
 
 ## 설치
@@ -194,6 +200,8 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 2. 폰에서 파일을 열어 설치합니다. 처음이면 "출처를 알 수 없는 앱 설치"를 허용해야 합니다.
 
 Android 8.0 이상의 arm64 기기에서 동작합니다. 브라우저 엔진이 들어 있어 APK가 100MB 정도입니다.
+
+이후 버전은 앱 안의 **설정 → 업데이트**에서 설치합니다. 처음 한 번 이 앱의 업데이트 설치를 허용해야 하고, 설치된 앱과 같은 키로 서명된 APK만 설치됩니다.
 
 ## 쓰는 법
 
@@ -218,6 +226,7 @@ Chrome 데이터는 **설정 → Chrome에서 가져오기**에서 옮깁니다.
 - **확인 절차는 두 겹입니다.** Claude가 위험하다고 표시한 동작과, 버튼 글자에 결제·주문·전송·삭제 같은 단어가 있는 동작 모두 확인을 받습니다.
 - **페이지 안의 문장은 지시로 다루지 않습니다.** 다만 프롬프트 인젝션을 완전히 막는 방법은 없으므로, 중요한 계정에서는 확인 창의 내용을 읽고 진행하세요.
 - **페이지 내용은 Claude에게 시킨 동안에만** Anthropic API로 전송됩니다.
+- **설치 권한은 이 앱의 업데이트에만 씁니다.** 이 저장소의 릴리스에서 내려받고, GitHub에 적힌 크기와 SHA-256과 맞는지 확인한 뒤 설치합니다.
 
 ## 알려진 한계
 
