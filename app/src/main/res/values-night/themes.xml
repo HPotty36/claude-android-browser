@@ -1,5 +1,5 @@
 <resources>
     <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#111413</item>
+        <item name="android:windowBackground">#000000</item>
     </style>
 </resources>

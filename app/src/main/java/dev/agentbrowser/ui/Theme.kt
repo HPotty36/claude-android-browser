@@ -27,23 +27,24 @@ private val Light = lightColorScheme(
     errorContainer = Color(0xFFF9DEDC), onErrorContainer = Color(0xFF410E0B),
 )
 
+// Dark is pitch black: on OLED the chrome disappears and only the page and the accent carry light.
 private val Dark = darkColorScheme(
     primary = Color(0xFF7FD6C2), onPrimary = Color(0xFF00382E),
-    primaryContainer = Color(0xFF1F4F45), onPrimaryContainer = Color(0xFFBDEFE2),
-    secondary = Color(0xFFC0C8C4), onSecondary = Color(0xFF111413),
-    secondaryContainer = Color(0xFF262B29), onSecondaryContainer = Color(0xFFE2E3E0),
+    primaryContainer = Color(0xFF12332C), onPrimaryContainer = Color(0xFFBDEFE2),
+    secondary = Color(0xFFB4B8B6), onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFF1A1A1A), onSecondaryContainer = Color(0xFFEDEDED),
     tertiary = Color(0xFF7FD6C2), onTertiary = Color(0xFF00382E),
-    tertiaryContainer = Color(0xFF1F4F45), onTertiaryContainer = Color(0xFFBDEFE2),
-    background = Color(0xFF111413), onBackground = Color(0xFFE2E3E0),
-    surface = Color(0xFF111413), onSurface = Color(0xFFE2E3E0),
-    surfaceVariant = Color(0xFF303533), onSurfaceVariant = Color(0xFFC0C8C4),
-    surfaceTint = Color(0xFF111413),
-    surfaceContainerLowest = Color(0xFF0C0F0E), surfaceContainerLow = Color(0xFF171A19),
-    surfaceContainer = Color(0xFF1C201E), surfaceContainerHigh = Color(0xFF262B29),
-    surfaceContainerHighest = Color(0xFF303533),
-    outline = Color(0xFF8A928E), outlineVariant = Color(0xFF404744),
-    error = Color(0xFFF2B8B5), onError = Color(0xFF601410),
-    errorContainer = Color(0xFF8C1D18), onErrorContainer = Color(0xFFF9DEDC),
+    tertiaryContainer = Color(0xFF12332C), onTertiaryContainer = Color(0xFFBDEFE2),
+    background = Color(0xFF000000), onBackground = Color(0xFFEDEDED),
+    surface = Color(0xFF000000), onSurface = Color(0xFFEDEDED),
+    surfaceVariant = Color(0xFF222222), onSurfaceVariant = Color(0xFFA6ABA9),
+    surfaceTint = Color(0xFF000000),
+    surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF000000),
+    surfaceContainer = Color(0xFF000000), surfaceContainerHigh = Color(0xFF161616),
+    surfaceContainerHighest = Color(0xFF1E1E1E),
+    outline = Color(0xFF6E7371), outlineVariant = Color(0xFF242424),
+    error = Color(0xFFFF8A80), onError = Color(0xFF3B0A06),
+    errorContainer = Color(0xFF5C1A14), onErrorContainer = Color(0xFFFFDAD6),
 )
 
 @Composable

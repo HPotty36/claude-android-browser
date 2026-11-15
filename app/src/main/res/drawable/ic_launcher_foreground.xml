@@ -1,8 +1,8 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <!-- A browser window outline with a pointer inside: the page, and the hand that works it. -->
-    <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineJoin="round"
-        android:pathData="M36,37h36a5,5 0,0 1,5 5v24a5,5 0,0 1,-5 5h-36a5,5 0,0 1,-5 -5v-24a5,5 0,0 1,5 -5z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M31,44h46v3h-46z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M49,51l14,6.5l-5.6,2l4.2,6.6l-2.9,1.8l-4.2,-6.6l-4,4.2z" />
+    <!-- A ring for the web and a pointer working inside it. -->
+    <path android:fillColor="#00000000" android:strokeColor="#7FD6C2" android:strokeWidth="5.5"
+        android:pathData="M52.5,28a19,19 0,1 1,0 38a19,19 0,1 1,0 -38z" />
+    <path android:fillColor="#FFFFFF" android:strokeColor="#000000" android:strokeWidth="3.5" android:strokeLineJoin="round"
+        android:pathData="M56.5,51L56.5,79L63.1,72.6L67.9,83L73.1,80.6L68.4,70.4L77.5,70.4Z" />
 </vector>

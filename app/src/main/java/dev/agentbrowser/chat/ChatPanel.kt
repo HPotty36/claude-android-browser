@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,12 +20,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,18 +48,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.agentbrowser.ui.PillField
+
+private val SUGGESTIONS = listOf("이 페이지 요약해 줘", "핵심만 세 줄로 정리해 줘", "이 페이지에서 가격 찾아 줘")
 
 /** The lower half of the browser screen: the conversation with Claude and what it is doing to the page. */
 @Composable
 fun ChatPanel(
     model: ChatViewModel,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -65,14 +76,15 @@ fun ChatPanel(
     val listState = rememberLazyListState()
     val colors = MaterialTheme.colorScheme
 
-    LaunchedEffect(items.size) {
-        if (items.isNotEmpty()) listState.animateScrollToItem(items.lastIndex)
+    LaunchedEffect(items.size, running) {
+        val last = items.size + (if (running) 1 else 0) - 1
+        if (last >= 0) listState.animateScrollToItem(last)
     }
 
     Surface(
         color = colors.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        border = BorderStroke(1.dp, colors.outlineVariant),
+        shape = if (expanded) RectangleShape else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        border = if (expanded) null else BorderStroke(1.dp, colors.outlineVariant),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
@@ -83,6 +95,13 @@ fun ChatPanel(
                 Text("Claude", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 IconButton(onClick = { model.newChat() }) {
                     Icon(Icons.Outlined.AddComment, contentDescription = "새 대화", tint = colors.onSurfaceVariant)
+                }
+                IconButton(onClick = onToggleExpanded) {
+                    if (expanded) {
+                        Icon(Icons.Filled.CloseFullscreen, contentDescription = "패널 줄이기", tint = colors.onSurfaceVariant)
+                    } else {
+                        Icon(Icons.Filled.OpenInFull, contentDescription = "전체 화면으로 키우기", tint = colors.onSurfaceVariant)
+                    }
                 }
                 IconButton(onClick = onClose) {
                     Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "패널 접기", tint = colors.onSurfaceVariant)
@@ -95,11 +114,21 @@ fun ChatPanel(
             ) {
                 if (items.isEmpty()) {
                     item {
-                        Text(
-                            "이 페이지에서 할 일을 적어 주세요. 예: 이 페이지 요약해 줘",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.onSurfaceVariant,
-                        )
+                        Column {
+                            Text(
+                                "이 페이지에서 할 일을 적어 주세요.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colors.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            SUGGESTIONS.forEach { suggestion ->
+                                SuggestionChip(
+                                    onClick = { model.send(suggestion) },
+                                    label = { Text(suggestion) },
+                                    border = BorderStroke(1.dp, colors.outlineVariant),
+                                )
+                            }
+                        }
                     }
                 }
                 itemsIndexed(items) { index, item ->
@@ -112,6 +141,15 @@ fun ChatPanel(
                     }
                     Spacer(Modifier.height(gap))
                     ChatRow(item, onOpenSettings)
+                }
+                if (running) {
+                    item {
+                        Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.primary)
+                            Spacer(Modifier.width(8.dp))
+                            Text("작업 중", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        }
+                    }
                 }
             }
             Row(
@@ -188,13 +226,14 @@ private fun ChatRow(item: ChatItem, onOpenSettings: () -> Unit) {
                 item.text,
                 color = colors.onPrimaryContainer,
                 modifier = Modifier
-                    .fillMaxWidth(0.82f)
+                    .widthIn(max = 300.dp)
                     .background(colors.primaryContainer, RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp))
                     .padding(horizontal = 14.dp, vertical = 10.dp),
             )
         }
         is ChatItem.Assistant -> Text(
-            buildAnnotatedString {
+            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+            text = buildAnnotatedString {
                 boldSegments(item.text).forEach { segment ->
                     if (segment.bold) withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(segment.text) }
                     else append(segment.text)

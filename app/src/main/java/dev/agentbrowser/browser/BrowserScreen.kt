@@ -86,6 +86,9 @@ fun BrowserScreen(
     val canGoBack by controller.canGoBack.collectAsState()
     val canGoForward by controller.canGoForward.collectAsState()
     var chatOpen by rememberSaveable { mutableStateOf(false) }
+    // Expanded, the chat takes the whole screen: the page and both bars step aside until it is shrunk again.
+    var chatExpanded by rememberSaveable { mutableStateOf(false) }
+    val fullChat = chatOpen && chatExpanded
     val agentRunning by chat.running.collectAsState()
     val pendingConfirm by chat.pendingConfirm.collectAsState()
     val loginPrompt by loginPrompts.prompt.collectAsState()
@@ -93,9 +96,10 @@ fun BrowserScreen(
 
     BackHandler(enabled = canGoBack) { controller.back() }
     BackHandler(enabled = chatOpen) { chatOpen = false }
+    BackHandler(enabled = fullChat) { chatExpanded = false }
 
     Column(modifier.fillMaxSize()) {
-        AddressBar(controller, isBookmarked, onToggleBookmark)
+        if (!fullChat) AddressBar(controller, isBookmarked, onToggleBookmark)
         AndroidView(
             factory = { context ->
                 GeckoView(context).apply {
@@ -107,18 +111,26 @@ fun BrowserScreen(
                 controller.capturePage = null
                 view.releaseSession()
             },
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            // The view stays attached while the chat is full screen so the page keeps its session.
+            modifier = if (fullChat) Modifier.fillMaxWidth().height(0.dp) else Modifier.weight(1f).fillMaxWidth(),
         )
         // Always on screen while Claude waits for an answer, whether or not the chat panel is open.
         pendingConfirm?.let { description ->
             ConfirmBar(description, onAnswer = chat::answerConfirm)
         }
         if (chatOpen) {
-            ChatPanel(chat, onClose = { chatOpen = false }, onOpenSettings = onSettings, modifier = Modifier.weight(1f))
+            ChatPanel(
+                model = chat,
+                expanded = chatExpanded,
+                onToggleExpanded = { chatExpanded = !chatExpanded },
+                onClose = { chatOpen = false },
+                onOpenSettings = onSettings,
+                modifier = Modifier.weight(1f),
+            )
         } else if (agentRunning) {
             RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop)
         }
-        BottomBar(
+        if (!fullChat) BottomBar(
             canGoBack = canGoBack,
             canGoForward = canGoForward,
             chatOpen = chatOpen,
