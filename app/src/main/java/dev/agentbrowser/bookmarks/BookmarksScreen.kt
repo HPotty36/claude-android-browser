@@ -1,5 +1,6 @@
 package dev.agentbrowser.bookmarks
 
+import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,8 +46,9 @@ fun BookmarksScreen(
     val scope = rememberCoroutineScope()
     val byFolder = bookmarks.groupBy { it.folder }.toSortedMap()
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
 
-    ScreenScaffold(title = "북마크", onBack = onBack) { snackbar ->
+    ScreenScaffold(title = s.bookmarks, onBack = onBack) { snackbar ->
         if (bookmarks.isEmpty()) {
             Column(
                 Modifier.fillMaxSize(),
@@ -54,8 +56,8 @@ fun BookmarksScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(48.dp))
-                Text("북마크가 없어요", color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
-                TextButton(onClick = onImport) { Text("Chrome에서 가져오기") }
+                Text(s.noBookmarks, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+                TextButton(onClick = onImport) { Text(s.importTitle) }
             }
             return@ScreenScaffold
         }
@@ -83,13 +85,13 @@ fun BookmarksScreen(
                                 scope.launch {
                                     repo.delete(bookmark.id)
                                     val result = snackbar.showSnackbar(
-                                        message = "북마크를 삭제했어요",
-                                        actionLabel = "실행 취소",
+                                        message = s.bookmarkDeleted,
+                                        actionLabel = s.undo,
                                         duration = SnackbarDuration.Short,
                                     )
                                     if (result == SnackbarResult.ActionPerformed) repo.restore(bookmark)
                                 }
-                            }) { Icon(Icons.Outlined.Delete, contentDescription = "삭제", tint = colors.onSurfaceVariant) }
+                            }) { Icon(Icons.Outlined.Delete, contentDescription = s.delete, tint = colors.onSurfaceVariant) }
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.clickable { onOpen(bookmark.url) },

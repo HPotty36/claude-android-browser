@@ -3,7 +3,7 @@
   if (window.top !== window) return;
 
   const MAX_CHARS = 30000;
-  const TRUNCATED = "[잘림]";
+  const TRUNCATED = "[truncated]";
   const SELECTOR =
     "a[href],button,input:not([type=hidden]),textarea,select," +
     "[role=button],[role=link],[role=tab],[role=checkbox],[role=menuitem],[onclick]";
@@ -86,7 +86,7 @@
     }
     const body = document.body ? document.body.innerText : "";
     const bodyText = body.replace(/[ \t ]+/g, " ").replace(/\n\s*\n\s*\n+/g, "\n\n").trim();
-    let text = lines.join("\n") + "\n--- 본문 ---\n" + bodyText;
+    let text = lines.join("\n") + "\n--- page text ---\n" + bodyText;
     if (text.length > MAX_CHARS) text = text.slice(0, MAX_CHARS) + TRUNCATED;
     return { url: location.href, title: document.title, text, hasPasswordField };
   }
@@ -97,7 +97,7 @@
   }
 
   function missing(ref) {
-    return { error: `요소 [${ref}]을 찾을 수 없습니다. 페이지를 다시 읽으세요.` };
+    return { error: `Element [${ref}] was not found. Read the page again.` };
   }
 
   function info(args) {
@@ -110,15 +110,15 @@
     if (!el) return missing(args.ref);
     el.scrollIntoView({ block: "center" });
     el.click();
-    return { ok: `[${args.ref}] 요소를 눌렀습니다.` };
+    return { ok: `Clicked element [${args.ref}].` };
   }
 
   function type(args) {
     const el = find(args.ref);
     if (!el) return missing(args.ref);
     const kind = kindOf(el);
-    if (kind === "password") return { error: "비밀번호는 사용자가 직접 입력해야 합니다." };
-    if (kind !== "textbox" && kind !== "select") return { error: `[${args.ref}] 요소는 입력창이 아닙니다.` };
+    if (kind === "password") return { error: "Passwords must be typed by the user themselves." };
+    if (kind !== "textbox" && kind !== "select") return { error: `Element [${args.ref}] is not an input.` };
     el.scrollIntoView({ block: "center" });
     el.focus();
     el.value = args.text; // the content script sees the native setter, so page frameworks notice the events below
@@ -133,14 +133,14 @@
         else el.form.submit();
       }
     }
-    return { ok: `[${args.ref}] 입력창에 입력했습니다.` + (args.submit ? " 제출했습니다." : "") };
+    return { ok: `Typed into input [${args.ref}].` + (args.submit ? " Submitted." : "") };
   }
 
   function scroll(args) {
     const amount = Math.round(window.innerHeight * 0.8) * (args.direction === "up" ? -1 : 1);
     window.scrollBy(0, amount);
     const height = document.documentElement ? document.documentElement.scrollHeight : 0;
-    return { ok: `스크롤했습니다. 현재 위치 ${Math.round(window.scrollY)} / 전체 높이 ${height}` };
+    return { ok: `Scrolled. Position ${Math.round(window.scrollY)} of page height ${height}.` };
   }
 
   function highlight(args) {
@@ -162,9 +162,9 @@
     let result;
     try {
       const command = commands[message.cmd];
-      result = command ? command(message.args || {}) : { error: `알 수 없는 명령: ${message.cmd}` };
+      result = command ? command(message.args || {}) : { error: `Unknown command: ${message.cmd}` };
     } catch (e) {
-      result = { error: `페이지에서 오류가 났습니다: ${e}` };
+      result = { error: `The page raised an error: ${e}` };
     }
     port.postMessage({ id: message.id, result });
   });

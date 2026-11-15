@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,9 @@ import dev.agentbrowser.passwords.PasswordsScreen
 import dev.agentbrowser.settings.ImportSection
 import dev.agentbrowser.settings.SettingsScreen
 import dev.agentbrowser.ui.AppTheme
+import dev.agentbrowser.ui.LocalStrings
+import dev.agentbrowser.ui.stringsFor
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -37,7 +41,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             var screen by rememberSaveable { mutableStateOf("browser") }
             val scope = rememberCoroutineScope()
+            val language by app.settings.language.collectAsState()
+            val strings = stringsFor(language, Locale.getDefault().language)
             AppTheme {
+              CompositionLocalProvider(LocalStrings provides strings) {
                 // The surface fills the window so the system bars take the chrome's colour.
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
                     Box(Modifier.safeDrawingPadding()) {
@@ -89,6 +96,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+              }
             }
         }
     }

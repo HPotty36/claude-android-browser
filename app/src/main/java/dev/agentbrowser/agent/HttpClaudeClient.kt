@@ -50,7 +50,7 @@ class HttpClaudeClient(
 
         val (status, text) = execute(request)
         if (status == 401 || status == 403) throw ClaudeError.Auth()
-        if (status !in 200..299) throw ClaudeError.Api(status, errorMessage(text) ?: "요청이 실패했어요. (HTTP $status)")
+        if (status !in 200..299) throw ClaudeError.Api(status, errorMessage(text) ?: "Request failed (HTTP $status).")
         return decodeReply(text)
     }
 
@@ -83,7 +83,7 @@ class HttpClaudeClient(
         val root = try {
             Json.parseToJsonElement(text).jsonObject
         } catch (e: Exception) {
-            throw ClaudeError.Api(200, "응답을 읽을 수 없어요.")
+            throw ClaudeError.Api(200, "The response could not be read.")
         }
         val blocks = (root["content"] as? JsonArray).orEmpty().mapNotNull { element ->
             val block = element.jsonObject

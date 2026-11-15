@@ -57,3 +57,7 @@ internal class FakePageDriver : PageDriver {
     override suspend fun highlight(ref: Int?) { highlights += ref }
 }
 
+
+/** The loop under test, describing its actions in Korean so assertions can name them. */
+internal fun loop(client: ClaudeClient, driver: PageDriver, maxSteps: Int = 25) =
+    AgentLoop(client, driver, maxSteps) { dev.agentbrowser.ui.Ko }

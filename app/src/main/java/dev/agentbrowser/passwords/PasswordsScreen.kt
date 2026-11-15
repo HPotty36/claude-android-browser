@@ -1,5 +1,6 @@
 package dev.agentbrowser.passwords
 
+import dev.agentbrowser.ui.LocalStrings
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.ClipData
@@ -57,6 +58,7 @@ fun PasswordsScreen(repo: LoginRepository, onBack: () -> Unit) {
     var deleting by remember { mutableStateOf<Login?>(null) }
     val logins by repo.all.collectAsState()
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
 
     val confirm = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) unlocked = true else onBack()
@@ -69,38 +71,38 @@ fun PasswordsScreen(repo: LoginRepository, onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         @Suppress("DEPRECATION")
-        val intent = keyguard.createConfirmDeviceCredentialIntent("저장된 비밀번호", "화면 잠금으로 본인 확인을 해 주세요.")
+        val intent = keyguard.createConfirmDeviceCredentialIntent(s.savedPasswords, s.confirmIdentity)
         // A device without a screen lock has nothing to confirm with.
         if (intent == null) unlocked = true else confirm.launch(intent)
     }
 
-    ScreenScaffold(title = "저장된 비밀번호", onBack = onBack) { snackbar ->
+    ScreenScaffold(title = s.savedPasswords, onBack = onBack) { snackbar ->
         if (!unlocked) return@ScreenScaffold
         if (logins.isEmpty()) {
-            Text("저장된 비밀번호가 없어요.", color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+            Text(s.noSavedPasswords, color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
             return@ScreenScaffold
         }
         LazyColumn(Modifier.fillMaxSize()) {
             items(logins, key = { it.id }) { login ->
                 ListItem(
                     headlineContent = { Text(displayHost(login.origin)) },
-                    supportingContent = { Text(login.username.ifEmpty { "아이디 없음" }) },
+                    supportingContent = { Text(login.username.ifEmpty { s.noUsername }) },
                     trailingContent = {
                         Row {
                             IconButton(onClick = {
                                 scope.launch { repo.reveal(login.id)?.let { revealed = login to it } }
-                            }) { Icon(Icons.Outlined.Visibility, contentDescription = "비밀번호 보기", tint = colors.onSurfaceVariant) }
+                            }) { Icon(Icons.Outlined.Visibility, contentDescription = s.showPassword, tint = colors.onSurfaceVariant) }
                             IconButton(onClick = {
                                 scope.launch {
                                     val password = repo.reveal(login.id) ?: return@launch
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     clipboard.setPrimaryClip(ClipData.newPlainText("password", password))
                                     // Android 13 and later show their own "copied" notice.
-                                    if (Build.VERSION.SDK_INT < 33) snackbar.showSnackbar("복사했어요")
+                                    if (Build.VERSION.SDK_INT < 33) snackbar.showSnackbar(s.copied)
                                 }
-                            }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "비밀번호 복사", tint = colors.onSurfaceVariant) }
+                            }) { Icon(Icons.Outlined.ContentCopy, contentDescription = s.copyPassword, tint = colors.onSurfaceVariant) }
                             IconButton(onClick = { deleting = login }) {
-                                Icon(Icons.Outlined.Delete, contentDescription = "삭제", tint = colors.onSurfaceVariant)
+                                Icon(Icons.Outlined.Delete, contentDescription = s.delete, tint = colors.onSurfaceVariant)
                             }
                         }
                     },
@@ -115,14 +117,14 @@ fun PasswordsScreen(repo: LoginRepository, onBack: () -> Unit) {
             onDismissRequest = { revealed = null },
             title = { Text(login.username.ifEmpty { displayHost(login.origin) }) },
             text = { Text(password, fontFamily = FontFamily.Monospace) },
-            confirmButton = { TextButton(onClick = { revealed = null }) { Text("확인") } },
+            confirmButton = { TextButton(onClick = { revealed = null }) { Text(s.ok) } },
         )
     }
     deleting?.let { login ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("이 비밀번호를 삭제할까요?") },
-            text = { Text("${displayHost(login.origin)} · ${login.username.ifEmpty { "아이디 없음" }}") },
+            title = { Text(s.deletePasswordTitle) },
+            text = { Text("${displayHost(login.origin)} · ${login.username.ifEmpty { s.noUsername }}") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -130,9 +132,9 @@ fun PasswordsScreen(repo: LoginRepository, onBack: () -> Unit) {
                         deleting = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = colors.error),
-                ) { Text("삭제") }
+                ) { Text(s.delete) }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("취소") } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(s.cancel) } },
         )
     }
 }

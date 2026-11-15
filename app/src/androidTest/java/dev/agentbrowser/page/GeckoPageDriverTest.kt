@@ -79,8 +79,8 @@ class GeckoPageDriverTest {
 
     @Test fun snapshotIsTruncated() = runBlocking {
         val text = driver.snapshot().text
-        assertTrue(text.endsWith("[잘림]"))
-        assertEquals(30_000 + "[잘림]".length, text.length)
+        assertTrue(text.endsWith("[truncated]"))
+        assertEquals(30_000 + "[truncated]".length, text.length)
     }
 
     @Test fun elementInfo() = runBlocking {
@@ -113,7 +113,7 @@ class GeckoPageDriverTest {
         driver.snapshot()
         val result = driver.click(999)
         assertTrue(result is ActionResult.Error)
-        assertTrue((result as ActionResult.Error).message.contains("다시 읽으세요"))
+        assertTrue((result as ActionResult.Error).message.contains("Read the page again"))
     }
 
     @Test fun screenshotBlockedOnPasswordPage() = runBlocking {

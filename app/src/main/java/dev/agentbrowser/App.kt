@@ -34,6 +34,6 @@ class App : Application() {
 
     val chat: ChatViewModel by lazy {
         val client = HttpClaudeClient(settings::apiKeyBlocking, settings::modelBlocking)
-        ChatViewModel(AgentLoop(client, browser.pageDriver), scope)
+        ChatViewModel(AgentLoop(client, browser.pageDriver, strings = settings::strings), scope, settings::strings)
     }
 }

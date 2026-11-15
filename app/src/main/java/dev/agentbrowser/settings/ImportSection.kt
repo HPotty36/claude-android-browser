@@ -1,5 +1,6 @@
 package dev.agentbrowser.settings
 
+import dev.agentbrowser.ui.LocalStrings
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,9 +42,6 @@ private suspend fun readText(context: Context, uri: Uri): String? = withContext(
     runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
 }
 
-private fun imported(what: String, added: Int, skipped: Int) =
-    "$what ${added}개를 가져왔어요" + if (skipped > 0) " (${skipped}개 건너뜀)" else ""
-
 /** The "bring it over from Chrome" part of the settings screen. */
 @Composable
 fun ImportSection(
@@ -53,6 +51,7 @@ fun ImportSection(
     onShowPasswords: () -> Unit,
 ) {
     val context = LocalContext.current
+    val s = LocalStrings.current
     val scope = rememberCoroutineScope()
     var help by remember { mutableStateOf<String?>(null) }
     var remindToDeleteCsv by remember { mutableStateOf(false) }
@@ -63,10 +62,10 @@ fun ImportSection(
         scope.launch {
             val parsed = readText(context, uri)?.let { withContext(Dispatchers.Default) { parseBookmarkHtml(it) } }.orEmpty()
             if (parsed.isEmpty()) {
-                snackbar.showSnackbar("북마크가 없는 파일이에요. Chrome에서 내보낸 HTML 파일을 골라 주세요.")
+                snackbar.showSnackbar(s.noBookmarksInFile)
             } else {
                 val result = bookmarks.import(parsed)
-                snackbar.showSnackbar(imported("북마크", result.added, result.skipped))
+                snackbar.showSnackbar(s.importedBookmarks(result.added, result.skipped))
             }
         }
     }
@@ -76,42 +75,42 @@ fun ImportSection(
         scope.launch {
             val parsed = readText(context, uri)?.let { withContext(Dispatchers.Default) { parsePasswordCsv(it) } }
             if (parsed == null || (parsed.logins.isEmpty() && parsed.skipped == 0)) {
-                snackbar.showSnackbar("Chrome에서 내보낸 비밀번호 CSV 파일이 아니에요.")
+                snackbar.showSnackbar(s.notAPasswordCsv)
             } else {
                 val result = logins.import(parsed.logins)
                 remindToDeleteCsv = true
-                snackbar.showSnackbar(imported("비밀번호", result.added, result.skipped + parsed.skipped))
+                snackbar.showSnackbar(s.importedPasswords(result.added, result.skipped + parsed.skipped))
             }
         }
     }
 
-    SectionLabel("Chrome에서 가져오기")
+    SectionLabel(s.importTitle)
     ListItem(
-        headlineContent = { Text("북마크 가져오기") },
-        supportingContent = { Text("Chrome에서 내보낸 HTML 파일") },
+        headlineContent = { Text(s.importBookmarks) },
+        supportingContent = { Text(s.importBookmarksNote) },
         leadingContent = { Icon(Icons.Outlined.Bookmarks, contentDescription = null) },
         trailingContent = {
             IconButton(onClick = {
-                help = "PC Chrome의 북마크 관리자에서 ⋮ > 북마크 내보내기로 만든 파일을 이 기기로 옮기세요."
-            }) { Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "내보내는 방법") }
+                help = s.importBookmarksHelp
+            }) { Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = s.howToExport) }
         },
         colors = rowColors,
         modifier = Modifier.clickable { pickBookmarks.launch(arrayOf("text/html", "application/xhtml+xml", "*/*")) },
     )
     ListItem(
-        headlineContent = { Text("비밀번호 가져오기") },
-        supportingContent = { Text("Chrome에서 내보낸 CSV 파일") },
+        headlineContent = { Text(s.importPasswords) },
+        supportingContent = { Text(s.importPasswordsNote) },
         leadingContent = { Icon(Icons.Outlined.Key, contentDescription = null) },
         trailingContent = {
             IconButton(onClick = {
-                help = "Chrome 설정 > Google 비밀번호 관리자 > 설정 > 비밀번호 내보내기"
-            }) { Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = "내보내는 방법") }
+                help = s.importPasswordsHelp
+            }) { Icon(Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = s.howToExport) }
         },
         colors = rowColors,
         modifier = Modifier.clickable { pickPasswords.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*")) },
     )
     ListItem(
-        headlineContent = { Text("저장된 비밀번호") },
+        headlineContent = { Text(s.savedPasswords) },
         leadingContent = { Icon(Icons.Outlined.Lock, contentDescription = null) },
         trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
         colors = rowColors,
@@ -122,15 +121,15 @@ fun ImportSection(
         AlertDialog(
             onDismissRequest = { help = null },
             text = { Text(text) },
-            confirmButton = { TextButton(onClick = { help = null }) { Text("확인") } },
+            confirmButton = { TextButton(onClick = { help = null }) { Text(s.ok) } },
         )
     }
     if (remindToDeleteCsv) {
         AlertDialog(
             onDismissRequest = { remindToDeleteCsv = false },
-            title = { Text("CSV 파일을 삭제하세요") },
-            text = { Text("이 파일에는 비밀번호가 암호화되지 않은 채 들어 있어요.") },
-            confirmButton = { TextButton(onClick = { remindToDeleteCsv = false }) { Text("확인") } },
+            title = { Text(s.deleteCsvTitle) },
+            text = { Text(s.deleteCsvBody) },
+            confirmButton = { TextButton(onClick = { remindToDeleteCsv = false }) { Text(s.ok) } },
         )
     }
 }

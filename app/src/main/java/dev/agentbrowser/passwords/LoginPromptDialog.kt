@@ -1,5 +1,6 @@
 package dev.agentbrowser.passwords
 
+import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,29 +14,30 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LoginPromptDialog(prompt: LoginPrompt) {
+    val s = LocalStrings.current
     when (prompt) {
         is LoginPrompt.Save -> AlertDialog(
             onDismissRequest = { prompt.respond(false) },
-            title = { Text("비밀번호를 저장할까요?") },
-            text = { Text("${prompt.origin}\n${prompt.username.ifEmpty { "아이디 없음" }}") },
-            confirmButton = { TextButton(onClick = { prompt.respond(true) }) { Text("저장") } },
-            dismissButton = { TextButton(onClick = { prompt.respond(false) }) { Text("저장 안 함") } },
+            title = { Text(s.savePasswordTitle) },
+            text = { Text("${prompt.origin}\n${prompt.username.ifEmpty { s.noUsername }}") },
+            confirmButton = { TextButton(onClick = { prompt.respond(true) }) { Text(s.save) } },
+            dismissButton = { TextButton(onClick = { prompt.respond(false) }) { Text(s.notNow) } },
         )
         is LoginPrompt.Select -> AlertDialog(
             onDismissRequest = { prompt.respond(null) },
-            title = { Text("로그인할 계정 선택") },
+            title = { Text(s.chooseAccount) },
             text = {
                 Column {
                     prompt.usernames.forEachIndexed { index, username ->
                         Text(
-                            username.ifEmpty { "아이디 없음" },
+                            username.ifEmpty { s.noUsername },
                             modifier = Modifier.fillMaxWidth().clickable { prompt.respond(index) }.padding(vertical = 12.dp),
                         )
                     }
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { prompt.respond(null) }) { Text("취소") } },
+            dismissButton = { TextButton(onClick = { prompt.respond(null) }) { Text(s.cancel) } },
         )
     }
 }

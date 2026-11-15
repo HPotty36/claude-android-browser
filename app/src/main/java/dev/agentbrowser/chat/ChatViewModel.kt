@@ -2,6 +2,8 @@ package dev.agentbrowser.chat
 
 import dev.agentbrowser.agent.AgentEvent
 import dev.agentbrowser.agent.AgentLoop
+import dev.agentbrowser.ui.En
+import dev.agentbrowser.ui.Strings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +18,11 @@ sealed interface ChatItem {
 }
 
 /** Turns [AgentLoop] events into what the chat panel shows. Lives as long as [scope]. */
-class ChatViewModel(private val loop: AgentLoop, private val scope: CoroutineScope) {
+class ChatViewModel(
+    private val loop: AgentLoop,
+    private val scope: CoroutineScope,
+    private val strings: () -> Strings = { En },
+) {
     private val _items = MutableStateFlow<List<ChatItem>>(emptyList())
     private val _running = MutableStateFlow(false)
     private val _pendingConfirm = MutableStateFlow<String?>(null)
@@ -41,7 +47,7 @@ class ChatViewModel(private val loop: AgentLoop, private val scope: CoroutineSco
             is AgentEvent.Action -> add(ChatItem.Action(event.description))
             is AgentEvent.ConfirmRequest -> _pendingConfirm.value = event.description
             is AgentEvent.Failed -> add(ChatItem.Notice(event.message, openSettings = event.isAuth))
-            AgentEvent.StepLimit -> add(ChatItem.Notice("한 번에 할 수 있는 동작 수를 넘어 멈췄어요."))
+            AgentEvent.StepLimit -> add(ChatItem.Notice(strings().stepLimitReached))
             AgentEvent.Done -> Unit
         }
     }
@@ -65,7 +71,7 @@ class ChatViewModel(private val loop: AgentLoop, private val scope: CoroutineSco
         job?.cancel()
         _running.value = false
         _pendingConfirm.value = null
-        add(ChatItem.Notice("중지했어요."))
+        add(ChatItem.Notice(strings().stopped))
     }
 
     fun answerConfirm(approved: Boolean) {

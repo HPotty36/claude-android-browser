@@ -3,6 +3,11 @@ package dev.agentbrowser.settings
 import android.content.Context
 import dev.agentbrowser.browser.SearchEngine
 import dev.agentbrowser.browser.searchEngineById
+import dev.agentbrowser.ui.Language
+import dev.agentbrowser.ui.Strings
+import dev.agentbrowser.ui.languageById
+import dev.agentbrowser.ui.stringsFor
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -30,6 +35,17 @@ class AppSettings(context: Context, private val secrets: SecretStore, prefsName:
         prefs.edit().putString("search_engine", engine.id).apply()
         _searchEngine.value = engine
     }
+
+    private val _language = MutableStateFlow(languageById(prefs.getString("language", null)))
+    val language: StateFlow<Language> = _language
+
+    fun setLanguage(language: Language) {
+        prefs.edit().putString("language", language.id).apply()
+        _language.value = language
+    }
+
+    /** The strings for the chosen language, read where there is no composition to provide them. */
+    fun strings(): Strings = stringsFor(_language.value, Locale.getDefault().language)
 
     /** Last four characters of the saved key, or null when none is saved. */
     val apiKeyHint: StateFlow<String?> = _apiKeyHint

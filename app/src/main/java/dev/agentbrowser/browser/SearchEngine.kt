@@ -6,7 +6,7 @@ data class SearchEngine(val id: String, val name: String, val queryUrl: String)
 val SEARCH_ENGINES = listOf(
     SearchEngine("duckduckgo", "DuckDuckGo", "https://duckduckgo.com/?q="),
     SearchEngine("google", "Google", "https://www.google.com/search?q="),
-    SearchEngine("naver", "네이버", "https://search.naver.com/search.naver?query="),
+    SearchEngine("naver", "Naver", "https://search.naver.com/search.naver?query="),
     SearchEngine("bing", "Bing", "https://www.bing.com/search?q="),
     SearchEngine("brave", "Brave Search", "https://search.brave.com/search?q="),
 )

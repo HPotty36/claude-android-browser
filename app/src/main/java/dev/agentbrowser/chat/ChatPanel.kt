@@ -1,5 +1,6 @@
 package dev.agentbrowser.chat
 
+import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -81,6 +82,7 @@ fun ChatPanel(
     var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
     val listState = rememberLazyListState()
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
 
     LaunchedEffect(items.size, running) {
         val last = items.size + (if (running) 1 else 0) - 1
@@ -112,7 +114,7 @@ fun ChatPanel(
                         .padding(top = 8.dp)
                         .size(width = 36.dp, height = 4.dp)
                         .background(colors.outline, RoundedCornerShape(2.dp))
-                        .semantics { contentDescription = "끌어서 패널 크기 조절" },
+                        .semantics { contentDescription = s.resizePanel },
                 )
             Row(
                 Modifier.fillMaxWidth().height(44.dp).padding(start = 16.dp, end = 4.dp),
@@ -120,17 +122,17 @@ fun ChatPanel(
             ) {
                 Text("Claude", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 IconButton(onClick = { model.newChat() }) {
-                    Icon(Icons.Outlined.AddComment, contentDescription = "새 대화", tint = colors.onSurfaceVariant)
+                    Icon(Icons.Outlined.AddComment, contentDescription = s.newChat, tint = colors.onSurfaceVariant)
                 }
                 IconButton(onClick = onToggleExpanded) {
                     if (expanded) {
-                        Icon(Icons.Filled.CloseFullscreen, contentDescription = "패널 줄이기", tint = colors.onSurfaceVariant)
+                        Icon(Icons.Filled.CloseFullscreen, contentDescription = s.shrinkPanel, tint = colors.onSurfaceVariant)
                     } else {
-                        Icon(Icons.Filled.OpenInFull, contentDescription = "전체 화면으로 키우기", tint = colors.onSurfaceVariant)
+                        Icon(Icons.Filled.OpenInFull, contentDescription = s.expandPanel, tint = colors.onSurfaceVariant)
                     }
                 }
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "패널 접기", tint = colors.onSurfaceVariant)
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = s.closePanel, tint = colors.onSurfaceVariant)
                 }
             }
             }
@@ -168,7 +170,7 @@ fun ChatPanel(
                         Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.primary)
                             Spacer(Modifier.width(8.dp))
-                            Text("작업 중", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                            Text(s.working, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                         }
                     }
                 }
@@ -180,7 +182,7 @@ fun ChatPanel(
                 PillField(
                     value = draft,
                     onValueChange = { draft = it },
-                    placeholder = "시킬 일 입력",
+                    placeholder = s.taskHint,
                     minHeight = 44.dp,
                     singleLine = false,
                     maxLines = 4,
@@ -196,7 +198,7 @@ fun ChatPanel(
                             contentColor = colors.onError,
                         ),
                         modifier = Modifier.size(44.dp),
-                    ) { Icon(Icons.Filled.Stop, contentDescription = "중지") }
+                    ) { Icon(Icons.Filled.Stop, contentDescription = s.stop) }
                 } else {
                     FilledIconButton(
                         onClick = {
@@ -205,7 +207,7 @@ fun ChatPanel(
                         },
                         enabled = draft.text.isNotBlank(),
                         modifier = Modifier.size(44.dp),
-                    ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "보내기") }
+                    ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = s.send) }
                 }
             }
         }
@@ -216,6 +218,7 @@ fun ChatPanel(
 @Composable
 fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
     Surface(color = colors.surfaceContainerHighest) {
         Column {
             HorizontalDivider(color = colors.outlineVariant)
@@ -223,15 +226,15 @@ fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.error, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("진행할까요?", style = MaterialTheme.typography.titleSmall)
+                    Text(s.confirmTitle, style = MaterialTheme.typography.titleSmall)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(description, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { onAnswer(false) }) { Text("취소") }
+                    TextButton(onClick = { onAnswer(false) }) { Text(s.cancel) }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = { onAnswer(true) }) { Text("진행") }
+                    Button(onClick = { onAnswer(true) }) { Text(s.proceed) }
                 }
             }
         }
@@ -241,6 +244,7 @@ fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit) {
 @Composable
 private fun ChatRow(item: ChatItem, onOpenSettings: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
     when (item) {
         is ChatItem.User -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Text(
@@ -272,7 +276,7 @@ private fun ChatRow(item: ChatItem, onOpenSettings: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text(item.text, color = colors.error, modifier = Modifier.weight(1f))
             }
-            if (item.openSettings) TextButton(onClick = onOpenSettings) { Text("설정 열기") }
+            if (item.openSettings) TextButton(onClick = onOpenSettings) { Text(s.openSettings) }
         }
     }
 }

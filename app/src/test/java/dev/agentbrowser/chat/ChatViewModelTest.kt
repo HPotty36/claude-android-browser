@@ -1,6 +1,7 @@
 package dev.agentbrowser.chat
 
-import dev.agentbrowser.agent.AgentLoop
+import dev.agentbrowser.agent.loop
+import dev.agentbrowser.ui.Ko
 import dev.agentbrowser.agent.ClaudeError
 import dev.agentbrowser.agent.FakeClaudeClient
 import dev.agentbrowser.agent.FakePageDriver
@@ -22,7 +23,7 @@ class ChatViewModelTest {
     private val driver = FakePageDriver()
 
     private fun TestScope.model(client: FakeClaudeClient, maxSteps: Int = 25) =
-        ChatViewModel(AgentLoop(client, driver, maxSteps), backgroundScope)
+        ChatViewModel(loop(client, driver, maxSteps), backgroundScope) { Ko }
 
     @Test fun userAndAssistantTextBecomeItems() = runTest(UnconfinedTestDispatcher()) {
         val model = model(FakeClaudeClient({ text("안녕하세요") }))

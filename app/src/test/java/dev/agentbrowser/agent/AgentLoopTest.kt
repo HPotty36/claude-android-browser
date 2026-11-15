@@ -40,7 +40,7 @@ class AgentLoopTest {
     }
 
     @Test fun textOnlyReplyEmitsDone() = runTest(UnconfinedTestDispatcher()) {
-        val loop = AgentLoop(FakeClaudeClient({ text("안녕하세요") }), driver)
+        val loop = loop(FakeClaudeClient({ text("안녕하세요") }), driver)
         val events = collect(loop)
         loop.run("안녕")
         assertEquals(listOf(AgentEvent.AssistantText("안녕하세요"), AgentEvent.Done), events)
@@ -48,7 +48,7 @@ class AgentLoopTest {
 
     @Test fun toolUseIsExecutedAndResultSentBack() = runTest(UnconfinedTestDispatcher()) {
         val client = FakeClaudeClient({ toolUse("tu_1", "read_page", "{}") }, { text("끝") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         val events = collect(loop)
         loop.run("읽어줘")
         assertEquals(1, driver.snapshots)
@@ -56,7 +56,7 @@ class AgentLoopTest {
         assertEquals("tu_1", result.toolUseId)
         assertFalse(result.isError)
         val sent = (result.content.single() as Block.Text).text
-        assertTrue(sent.startsWith("URL: https://ex.com/\n제목: Ex\n"))
+        assertTrue(sent.startsWith("URL: https://ex.com/\nTitle: Ex\n"))
         assertTrue(sent.contains("[1] button \"검색\""))
         assertTrue(events.any { it is AgentEvent.Action })
         assertEquals(AgentEvent.Done, events.last())
@@ -65,7 +65,7 @@ class AgentLoopTest {
     @Test fun riskyClickWaitsForConfirmAndRuns() = runTest(UnconfinedTestDispatcher()) {
         driver.labels[1] = "결제하기"
         val client = FakeClaudeClient({ toolUse("tu_1", "click", """{"ref":1}""") }, { text("끝") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         val events = collect(loop)
         val job = launch { loop.run("결제해줘") }
         assertTrue(events.last() is AgentEvent.ConfirmRequest)
@@ -79,7 +79,7 @@ class AgentLoopTest {
     @Test fun deniedClickIsNotExecuted() = runTest(UnconfinedTestDispatcher()) {
         driver.labels[1] = "삭제"
         val client = FakeClaudeClient({ toolUse("tu_1", "click", """{"ref":1}""") }, { text("알겠어요") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         collect(loop)
         val job = launch { loop.run("지워줘") }
         loop.confirm(false)
@@ -87,13 +87,13 @@ class AgentLoopTest {
         assertEquals(emptyList<Int>(), driver.clicks)
         val result = lastResult(client.calls[1])
         assertTrue(result.isError)
-        assertTrue((result.content.single() as Block.Text).text.contains("거부"))
+        assertTrue((result.content.single() as Block.Text).text.contains("declined"))
     }
 
     @Test fun staleRefErrorIsReturnedNotThrown() = runTest(UnconfinedTestDispatcher()) {
         driver.clickResult = ActionResult.Error("요소 [7]을 찾을 수 없습니다. 페이지를 다시 읽으세요.")
         val client = FakeClaudeClient({ toolUse("tu_1", "click", """{"ref":7}""") }, { text("다시 읽을게요") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         val events = collect(loop)
         loop.run("눌러줘")
         val result = lastResult(client.calls[1])
@@ -108,19 +108,19 @@ class AgentLoopTest {
         val client = FakeClaudeClient(
             { toolUse("tu_1", "type", """{"ref":4,"text":"hunter2","submit":false}""") }, { text("직접 입력해 주세요") },
         )
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         collect(loop)
         loop.run("로그인해줘")
         assertEquals(emptyList<String>(), driver.typed)
         val result = lastResult(client.calls[1])
         assertTrue(result.isError)
-        assertTrue((result.content.single() as Block.Text).text.contains("직접"))
+        assertTrue((result.content.single() as Block.Text).text.contains("themselves"))
     }
 
     @Test fun stopsAtStepLimit() = runTest(UnconfinedTestDispatcher()) {
         var n = 0
         val client = FakeClaudeClient().apply { fallback = { toolUse("tu_${n++}", "read_page", "{}") } }
-        val loop = AgentLoop(client, driver, maxSteps = 3)
+        val loop = loop(client, driver, maxSteps = 3)
         val events = collect(loop)
         loop.run("계속 읽어")
         assertEquals(3, driver.snapshots)
@@ -128,7 +128,7 @@ class AgentLoopTest {
     }
 
     @Test fun authErrorEmitsFailedAuth() = runTest(UnconfinedTestDispatcher()) {
-        val loop = AgentLoop(FakeClaudeClient({ throw ClaudeError.Auth() }), driver)
+        val loop = loop(FakeClaudeClient({ throw ClaudeError.Auth() }), driver)
         val events = collect(loop)
         loop.run("안녕")
         assertEquals(AgentEvent.Failed("API 키를 확인하세요.", isAuth = true), events.last())
@@ -138,7 +138,7 @@ class AgentLoopTest {
         val client = FakeClaudeClient(
             { toolUse("tu_1", "read_page", "{}") }, { throw ClaudeError.Network() }, { text("끝") },
         )
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         val events = collect(loop)
         loop.run("읽어줘")
         assertEquals(AgentEvent.Failed("연결이 끊겼어요.", isAuth = false), events.last())
@@ -150,7 +150,7 @@ class AgentLoopTest {
 
     @Test fun failedFirstCallDoesNotDuplicateUserText() = runTest(UnconfinedTestDispatcher()) {
         val client = FakeClaudeClient({ throw ClaudeError.Network() }, { text("끝") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         collect(loop)
         loop.run("안녕")
         loop.run("안녕")
@@ -160,7 +160,7 @@ class AgentLoopTest {
     @Test fun cancelLeavesNoDanglingToolUse() = runTest(UnconfinedTestDispatcher()) {
         driver.clickGate = CompletableDeferred()
         val client = FakeClaudeClient({ toolUse("tu_1", "click", """{"ref":1}""") }, { text("끝") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         collect(loop)
         val job = launch { loop.run("눌러줘") }
         driver.clickStarted.await()
@@ -173,7 +173,7 @@ class AgentLoopTest {
 
     @Test fun resetClearsHistory() = runTest(UnconfinedTestDispatcher()) {
         val client = FakeClaudeClient({ text("a") }, { text("b") })
-        val loop = AgentLoop(client, driver)
+        val loop = loop(client, driver)
         collect(loop)
         loop.run("하나")
         loop.reset()

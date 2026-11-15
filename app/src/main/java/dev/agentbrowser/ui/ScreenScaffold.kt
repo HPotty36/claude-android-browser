@@ -1,5 +1,6 @@
 package dev.agentbrowser.ui
 
+import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -37,7 +38,7 @@ fun ScreenScaffold(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = LocalStrings.current.back)
                     }
                 },
                 actions = actions,

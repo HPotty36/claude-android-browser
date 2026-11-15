@@ -2,6 +2,8 @@ package dev.agentbrowser.agent
 
 import dev.agentbrowser.page.ActionResult
 import dev.agentbrowser.page.PageDriver
+import dev.agentbrowser.ui.En
+import dev.agentbrowser.ui.Strings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -31,6 +33,8 @@ class AgentLoop(
     private val client: ClaudeClient,
     private val driver: PageDriver,
     private val maxSteps: Int = 25,
+    /** The language of what the user sees: action descriptions and failure notices. */
+    private val strings: () -> Strings = { En },
 ) {
     private val _events = MutableSharedFlow<AgentEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<AgentEvent> = _events
@@ -55,7 +59,7 @@ class AgentLoop(
         val pendingResults = mutableListOf<Block>()
         try {
             while (true) {
-                val reply = client.send(SYSTEM_PROMPT, history.toList(), TOOLS)
+                val reply = client.send(systemPrompt(strings().replyLanguage), history.toList(), TOOLS)
                 if (reply.content.isNotEmpty()) history += Message("assistant", reply.content)
                 reply.content.filterIsInstance<Block.Text>().filter { it.text.isNotBlank() }
                     .forEach { _events.emit(AgentEvent.AssistantText(it.text)) }
@@ -68,7 +72,7 @@ class AgentLoop(
                 pendingResults.clear()
                 for (use in pendingUses) {
                     if (executed >= maxSteps) {
-                        pendingResults += error(use, "동작 상한에 도달해 실행하지 않았습니다.")
+                        pendingResults += error(use, "Not run: the action limit for this request was reached.")
                         continue
                     }
                     executed++
@@ -86,7 +90,12 @@ class AgentLoop(
             throw e
         } catch (e: ClaudeError) {
             closeOpenTurn(pendingUses, pendingResults, sizeBefore, lastBefore)
-            _events.emit(AgentEvent.Failed(e.message.orEmpty(), isAuth = e is ClaudeError.Auth))
+            val message = when (e) {
+                is ClaudeError.Auth -> strings().checkApiKey
+                is ClaudeError.Network -> strings().connectionLost
+                is ClaudeError.Api -> e.message.orEmpty()
+            }
+            _events.emit(AgentEvent.Failed(message, isAuth = e is ClaudeError.Auth))
         } finally {
             pendingConfirm = null
             withContext(NonCancellable) { runCatching { driver.highlight(null) } }
@@ -115,7 +124,7 @@ class AgentLoop(
     ) {
         if (uses.isNotEmpty()) {
             val answered = results.filterIsInstance<Block.ToolResult>().map { it.toolUseId }.toSet()
-            val missing = uses.filter { it.id !in answered }.map { error(it, "사용자가 중지했습니다.") }
+            val missing = uses.filter { it.id !in answered }.map { error(it, "The user stopped the task.") }
             history += Message("user", results + missing)
             return
         }
@@ -143,54 +152,54 @@ class AgentLoop(
     private suspend fun execute(use: Block.ToolUse): Block.ToolResult = try {
         when (use.name) {
             "read_page" -> {
-                _events.emit(AgentEvent.Action("페이지 읽기"))
+                _events.emit(AgentEvent.Action(strings().actionReadPage))
                 val page = driver.snapshot()
-                ok(use, "URL: ${page.url}\n제목: ${page.title}\n${page.text}")
+                ok(use, "URL: ${page.url}\nTitle: ${page.title}\n${page.text}")
             }
             "click" -> onElement(use) { ref, label ->
-                act(use, ref, label, "'$label' 클릭") { driver.click(ref) }
+                act(use, ref, label, strings().actionClick(label)) { driver.click(ref) }
             }
             "type" -> onElement(use) { ref, label ->
-                val text = use.input.string("text") ?: return@onElement error(use, "text가 필요합니다.")
+                val text = use.input.string("text") ?: return@onElement error(use, "text is required.")
                 if (driver.elementKind(ref) == "password") {
-                    return@onElement error(use, "비밀번호는 사용자가 직접 입력해야 합니다.")
+                    return@onElement error(use, "Passwords must be typed by the user themselves.")
                 }
                 val submit = use.input.bool("submit")
-                val description = "'$label'에 '$text' 입력" + if (submit) " 후 제출" else ""
+                val description = strings().actionType(label, text, submit)
                 act(use, ref, label, description) { driver.type(ref, text, submit) }
             }
             "scroll" -> {
                 val direction = if (use.input.string("direction") == "up") "up" else "down"
-                _events.emit(AgentEvent.Action(if (direction == "up") "위로 스크롤" else "아래로 스크롤"))
+                _events.emit(AgentEvent.Action(if (direction == "up") strings().actionScrollUp else strings().actionScrollDown))
                 result(use, driver.scroll(direction))
             }
             "navigate" -> {
-                val target = use.input.string("target") ?: return error(use, "target이 필요합니다.")
-                _events.emit(AgentEvent.Action("이동: $target"))
+                val target = use.input.string("target") ?: return error(use, "target is required.")
+                _events.emit(AgentEvent.Action(strings().actionNavigate(target)))
                 result(use, driver.navigate(target))
             }
             "screenshot" -> {
-                _events.emit(AgentEvent.Action("화면 캡처"))
+                _events.emit(AgentEvent.Action(strings().actionScreenshot))
                 val jpeg = driver.screenshot()
-                if (jpeg == null) ok(use, "비밀번호 입력창이 있는 화면은 캡처할 수 없습니다.")
+                if (jpeg == null) ok(use, "A page showing a password field cannot be captured.")
                 else Block.ToolResult(use.id, listOf(Block.Image(jpeg)))
             }
-            else -> error(use, "알 수 없는 도구입니다: ${use.name}")
+            else -> error(use, "Unknown tool: ${use.name}")
         }
     } catch (e: CancellationException) {
         throw e
     } catch (e: ClaudeError) {
         throw e
     } catch (e: Exception) {
-        error(use, "실행 중 오류가 났습니다: ${e.message}")
+        error(use, "The action failed: ${e.message}")
     }
 
     private suspend fun onElement(
         use: Block.ToolUse,
         block: suspend (ref: Int, label: String) -> Block.ToolResult,
     ): Block.ToolResult {
-        val ref = use.input.int("ref") ?: return error(use, "ref가 필요합니다.")
-        return block(ref, driver.elementLabel(ref) ?: "요소 [$ref]")
+        val ref = use.input.int("ref") ?: return error(use, "ref is required.")
+        return block(ref, driver.elementLabel(ref)?.takeIf { it.isNotBlank() } ?: strings().unnamedElement(ref))
     }
 
     /** Asks the user first when the action needs it, then highlights the element and runs [action]. */
@@ -208,7 +217,7 @@ class AgentLoop(
             _events.emit(AgentEvent.ConfirmRequest(description))
             val approved = answer.await()
             pendingConfirm = null
-            if (!approved) return error(use, "사용자가 거부했습니다. 이 동작은 실행하지 않았습니다.")
+            if (!approved) return error(use, "The user declined. The action was not run.")
         }
         driver.highlight(ref)
         _events.emit(AgentEvent.Action(description))

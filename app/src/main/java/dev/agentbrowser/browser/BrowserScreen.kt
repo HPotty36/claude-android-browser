@@ -1,5 +1,6 @@
 package dev.agentbrowser.browser
 
+import dev.agentbrowser.ui.LocalStrings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -99,8 +100,6 @@ import dev.agentbrowser.passwords.LoginPromptDialog
 import dev.agentbrowser.ui.PillField
 import org.mozilla.geckoview.GeckoView
 
-private val PAGE_SUGGESTIONS = listOf("이 페이지 요약해 줘", "여기서 가격 찾아 줘")
-
 @Composable
 fun BrowserScreen(
     controller: BrowserController,
@@ -130,6 +129,7 @@ fun BrowserScreen(
     loginPrompt?.let { LoginPromptDialog(it) }
     val onStartPage = url.isEmpty() || url == HOME_URL
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
 
     BackHandler(enabled = canGoBack) { controller.back() }
     BackHandler(enabled = chatOpen) { chatOpen = false }
@@ -192,7 +192,7 @@ fun BrowserScreen(
                             is PanelRest.Partial -> chatFraction = rest.fraction
                         }
                     },
-                    suggestions = if (onStartPage) emptyList() else PAGE_SUGGESTIONS,
+                    suggestions = if (onStartPage) emptyList() else listOf(s.suggestSummary, s.suggestPrice),
                     onClose = { chatOpen = false },
                     onOpenSettings = onSettings,
                     modifier = Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)),
@@ -244,6 +244,7 @@ private fun CommandBar(
     var tabsOpen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
 
     BackHandler(enabled = editing != null) { editing = null }
     if (tabsOpen) TabsSheet(controller, onDismiss = { tabsOpen = false })
@@ -263,7 +264,7 @@ private fun CommandBar(
                 PillField(
                     value = draft,
                     onValueChange = { editing = it },
-                    placeholder = "검색어 또는 주소 입력",
+                    placeholder = s.searchHint,
                     minHeight = 48.dp,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = {
@@ -276,7 +277,7 @@ private fun CommandBar(
                     },
                     trailing = {
                         IconButton(onClick = { editing = TextFieldValue("") }) {
-                            Icon(Icons.Filled.Close, contentDescription = "지우기", tint = colors.onSurfaceVariant)
+                            Icon(Icons.Filled.Close, contentDescription = s.clear, tint = colors.onSurfaceVariant)
                         }
                     },
                 )
@@ -285,7 +286,7 @@ private fun CommandBar(
                     Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .clickable(onClickLabel = "주소 편집") {
+                        .clickable(onClickLabel = s.editAddress) {
                             val text = if (onStartPage) "" else url
                             editing = TextFieldValue(text, TextRange(0, text.length))
                         }
@@ -304,7 +305,7 @@ private fun CommandBar(
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        if (onStartPage) "검색어 또는 주소 입력" else displayHost(url),
+                        if (onStartPage) s.searchHint else displayHost(url),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = if (onStartPage) FontWeight.Normal else FontWeight.Medium,
                         color = if (onStartPage) colors.onSurfaceVariant else colors.onSurface,
@@ -314,11 +315,11 @@ private fun CommandBar(
                     )
                     if (loading) {
                         IconButton(onClick = controller::stop) {
-                            Icon(Icons.Filled.Close, contentDescription = "로딩 중지", tint = colors.onSurfaceVariant)
+                            Icon(Icons.Filled.Close, contentDescription = s.stopLoading, tint = colors.onSurfaceVariant)
                         }
                     } else if (!onStartPage) {
                         IconButton(onClick = controller::reload) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "새로고침", tint = colors.onSurfaceVariant)
+                            Icon(Icons.Filled.Refresh, contentDescription = s.reload, tint = colors.onSurfaceVariant)
                         }
                     }
                 }
@@ -340,14 +341,14 @@ private fun CommandBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = controller::back, enabled = canGoBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = s.back)
                 }
                 IconButton(onClick = controller::forward, enabled = canGoForward) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "앞으로")
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = s.forward)
                 }
                 IconButton(onClick = onToggleBookmark, enabled = url.startsWith("http")) {
-                    if (isBookmarked) Icon(Icons.Filled.Star, contentDescription = "북마크에서 삭제", tint = colors.primary)
-                    else Icon(Icons.Outlined.StarBorder, contentDescription = "북마크에 추가")
+                    if (isBookmarked) Icon(Icons.Filled.Star, contentDescription = s.removeBookmark, tint = colors.primary)
+                    else Icon(Icons.Outlined.StarBorder, contentDescription = s.addBookmark)
                 }
                 ClaudeOrb(active = chatOpen, running = agentRunning, onClick = onClaude)
                 IconButton(onClick = { tabsOpen = true }) {
@@ -359,13 +360,13 @@ private fun CommandBar(
                             if (tabs.size > 99) "99" else tabs.size.toString(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.semantics { contentDescription = "탭 ${tabs.size}개" },
+                            modifier = Modifier.semantics { contentDescription = s.tabCount(tabs.size) },
                         )
                     }
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "메뉴")
+                        Icon(Icons.Filled.MoreVert, contentDescription = s.menu)
                     }
                     DropdownMenu(
                         expanded = menuOpen,
@@ -386,10 +387,10 @@ private fun CommandBar(
                                 },
                             )
                         }
-                        item("새 탭", Icons.Filled.Add) { controller.newTab() }
-                        item("북마크", Icons.Outlined.Bookmarks, action = onBookmarks)
-                        item("홈", Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)
-                        item("설정", Icons.Outlined.Settings, action = onSettings)
+                        item(s.newTab, Icons.Filled.Add) { controller.newTab() }
+                        item(s.bookmarks, Icons.Outlined.Bookmarks, action = onBookmarks)
+                        item(s.home, Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)
+                        item(s.settings, Icons.Outlined.Settings, action = onSettings)
                     }
                 }
             }
@@ -404,16 +405,17 @@ private fun TabsSheet(controller: BrowserController, onDismiss: () -> Unit) {
     val tabs by controller.tabs.collectAsState()
     val current by controller.current.collectAsState()
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerHigh) {
         Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("탭 ${tabs.size}개", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            Text(s.tabCount(tabs.size), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             TextButton(onClick = {
                 controller.newTab()
                 onDismiss()
             }) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("새 탭")
+                Text(s.newTab)
             }
         }
         LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
@@ -424,14 +426,14 @@ private fun TabsSheet(controller: BrowserController, onDismiss: () -> Unit) {
                 val selected = tab.id == current.id
                 ListItem(
                     headlineContent = {
-                        Text(if (blank) "새 탭" else title.ifBlank { displayHost(url) }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(if (blank) s.newTab else title.ifBlank { displayHost(url) }, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     },
                     supportingContent = if (blank) null else {
                         { Text(displayHost(url), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     },
                     trailingContent = {
                         IconButton(onClick = { controller.close(tab.id) }) {
-                            Icon(Icons.Filled.Close, contentDescription = "탭 닫기", tint = colors.onSurfaceVariant)
+                            Icon(Icons.Filled.Close, contentDescription = s.closeTab, tint = colors.onSurfaceVariant)
                         }
                     },
                     colors = ListItemDefaults.colors(
@@ -453,13 +455,14 @@ private fun TabsSheet(controller: BrowserController, onDismiss: () -> Unit) {
 @Composable
 private fun ClaudeOrb(active: Boolean, running: Boolean, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
     Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(if (active) colors.primary else colors.primaryContainer)
-                .clickable(onClickLabel = "Claude 패널", role = Role.Button, onClick = onClick),
+                .clickable(onClickLabel = s.claudePanel, role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -476,23 +479,24 @@ private fun ClaudeOrb(active: Boolean, running: Boolean, onClick: () -> Unit) {
 @Composable
 private fun RunningStrip(onOpen: () -> Unit, onStop: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val s = LocalStrings.current
     Surface(
         color = colors.primaryContainer,
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 6.dp).height(44.dp),
     ) {
         Row(
-            Modifier.fillMaxSize().clickable(onClickLabel = "대화 열기", onClick = onOpen).padding(start = 16.dp, end = 4.dp),
+            Modifier.fillMaxSize().clickable(onClickLabel = s.openChat, onClick = onOpen).padding(start = 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "Claude가 작업 중",
+                s.claudeWorking,
                 style = MaterialTheme.typography.labelLarge,
                 color = colors.onPrimaryContainer,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onStop, colors = ButtonDefaults.textButtonColors(contentColor = colors.error)) {
-                Text("중지")
+                Text(s.stop)
             }
         }
     }

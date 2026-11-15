@@ -58,4 +58,16 @@ class SecretStoreTest {
         settings.setSearchEngine("google")
         assertEquals("google", AppSettings(context, secrets, prefsName = "settings_test3").searchEngine.value.id)
     }
+
+    @Test fun settingsLanguageDefaultsToSystemAndPersists() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        context.getSharedPreferences("settings_test4", 0).edit().clear().commit()
+        val settings = AppSettings(context, secrets, prefsName = "settings_test4")
+        assertEquals(dev.agentbrowser.ui.Language.SYSTEM, settings.language.value)
+        settings.setLanguage(dev.agentbrowser.ui.Language.ENGLISH)
+        assertEquals(
+            dev.agentbrowser.ui.Language.ENGLISH,
+            AppSettings(context, secrets, prefsName = "settings_test4").language.value,
+        )
+    }
 }

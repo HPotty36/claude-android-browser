@@ -17,8 +17,8 @@ data class ToolDef(val name: String, val description: String, val inputSchema: J
 data class ClaudeReply(val content: List<Block>, val stopReason: String)
 
 sealed class ClaudeError(message: String) : Exception(message) {
-    class Auth : ClaudeError("API 키를 확인하세요.")
-    class Network : ClaudeError("연결이 끊겼어요.")
+    class Auth : ClaudeError("The API key is missing or was rejected.")
+    class Network : ClaudeError("The connection failed.")
     class Api(val status: Int, detail: String) : ClaudeError(detail)
 }
 

@@ -1,5 +1,6 @@
 package dev.agentbrowser.settings
 
+import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +50,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.agentbrowser.browser.SEARCH_ENGINES
 import dev.agentbrowser.browser.displayHost
+import dev.agentbrowser.ui.Language
 import dev.agentbrowser.ui.ScreenScaffold
 import dev.agentbrowser.ui.SectionLabel
 
@@ -54,14 +60,17 @@ fun SettingsScreen(
     onBack: () -> Unit,
     extraSections: @Composable (snackbar: SnackbarHostState) -> Unit = {},
 ) {
-    ScreenScaffold(title = "설정", onBack = onBack) { snackbar ->
+    val s = LocalStrings.current
+    ScreenScaffold(title = s.settings, onBack = onBack) { snackbar ->
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            SectionLabel("Anthropic API 키")
+            SectionLabel(s.apiKeyTitle)
             ApiKeyField(settings)
-            SectionLabel("모델")
+            SectionLabel(s.model)
             ModelPicker(settings)
-            SectionLabel("검색 엔진")
+            SectionLabel(s.searchEngine)
             SearchEnginePicker(settings)
+            SectionLabel(s.language)
+            LanguagePicker(settings)
             extraSections(snackbar)
             Spacer(Modifier.height(24.dp))
         }
@@ -70,6 +79,7 @@ fun SettingsScreen(
 
 @Composable
 private fun ApiKeyField(settings: AppSettings) {
+    val s = LocalStrings.current
     val hint by settings.apiKeyHint.collectAsState()
     var draft by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
@@ -81,14 +91,14 @@ private fun ApiKeyField(settings: AppSettings) {
             singleLine = true,
             placeholder = { Text("sk-ant-…") },
             supportingText = {
-                Text(if (hint != null) "저장됨 · ····$hint" else "이 기기에만 암호화해 저장해요.")
+                Text(hint?.let { s.apiKeySaved(it) } ?: s.apiKeyNote)
             },
             visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { visible = !visible }) {
                     Icon(
                         if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                        contentDescription = if (visible) "키 숨기기" else "키 보기",
+                        contentDescription = if (visible) s.hideKey else s.showKey,
                     )
                 }
             },
@@ -99,7 +109,7 @@ private fun ApiKeyField(settings: AppSettings) {
                 TextButton(
                     onClick = { settings.setApiKey(null) },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text("삭제") }
+                ) { Text(s.delete) }
             }
             Button(
                 onClick = {
@@ -107,18 +117,41 @@ private fun ApiKeyField(settings: AppSettings) {
                     draft = ""
                 },
                 enabled = draft.isNotBlank(),
-            ) { Text("저장") }
+            ) { Text(s.save) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguagePicker(settings: AppSettings) {
+    val s = LocalStrings.current
+    val current by settings.language.collectAsState()
+    // English and Korean are named in their own language so either can be found from the other.
+    val options = listOf(
+        Language.SYSTEM to s.languageSystem,
+        Language.ENGLISH to s.languageEnglish,
+        Language.KOREAN to s.languageKorean,
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        options.forEachIndexed { index, (language, label) ->
+            SegmentedButton(
+                selected = current == language,
+                onClick = { settings.setLanguage(language) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+            ) { Text(label) }
         }
     }
 }
 
 @Composable
 private fun SearchEnginePicker(settings: AppSettings) {
+    val s = LocalStrings.current
     val current by settings.searchEngine.collectAsState()
     SEARCH_ENGINES.forEach { engine ->
         val selected = engine.id == current.id
         ListItem(
-            headlineContent = { Text(engine.name) },
+            headlineContent = { Text(if (engine.id == "naver") s.naver else engine.name) },
             supportingContent = { Text(displayHost(engine.queryUrl)) },
             leadingContent = { RadioButton(selected = selected, onClick = null) },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -131,6 +164,7 @@ private fun SearchEnginePicker(settings: AppSettings) {
 
 @Composable
 private fun ModelPicker(settings: AppSettings) {
+    val s = LocalStrings.current
     val model by settings.model.collectAsState()
     val isCustom = KNOWN_MODELS.none { it.first == model }
     var customSelected by remember { mutableStateOf(isCustom) }
@@ -152,7 +186,7 @@ private fun ModelPicker(settings: AppSettings) {
         )
     }
     ListItem(
-        headlineContent = { Text("직접 입력") },
+        headlineContent = { Text(s.customModel) },
         leadingContent = { RadioButton(selected = customSelected, onClick = null) },
         colors = rowColors,
         modifier = Modifier.selectable(selected = customSelected, role = Role.RadioButton) { customSelected = true },
@@ -162,7 +196,7 @@ private fun ModelPicker(settings: AppSettings) {
             value = customDraft,
             onValueChange = { customDraft = it },
             singleLine = true,
-            placeholder = { Text("모델 ID") },
+            placeholder = { Text(s.modelId) },
             textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = {

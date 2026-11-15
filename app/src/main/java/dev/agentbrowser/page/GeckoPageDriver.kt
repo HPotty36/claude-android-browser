@@ -15,7 +15,7 @@ import org.mozilla.geckoview.WebExtension
 import java.io.ByteArrayOutputStream
 
 private const val TIMEOUT_MS = 10_000L
-private const val NO_RESPONSE = "페이지가 응답하지 않습니다."
+private const val NO_RESPONSE = "The page did not respond."
 private const val SCREENSHOT_MAX_SIDE = 1024
 
 /**
@@ -81,7 +81,7 @@ class GeckoPageDriver(
             val error = reply.json.optString("error")
             if (error.isNotEmpty()) ActionResult.Error(error) else ActionResult.Ok(reply.json.optString("ok"))
         }
-        Reply.Navigated -> ActionResult.Ok("실행했고 페이지가 이동했습니다. 페이지를 다시 읽으세요.")
+        Reply.Navigated -> ActionResult.Ok("Done, and the page navigated. Read the page again.")
         Reply.NoResponse -> ActionResult.Error(NO_RESPONSE)
     }
 
@@ -97,7 +97,7 @@ class GeckoPageDriver(
                 )
             }
         }
-        return PageSnapshot("", "", "$NO_RESPONSE 페이지가 아직 열리는 중이거나 읽을 수 없는 페이지입니다.", false)
+        return PageSnapshot("", "", "$NO_RESPONSE It may still be loading, or it is a page that cannot be read.", false)
     }
 
     private suspend fun info(ref: Int): JSONObject? =
@@ -122,10 +122,10 @@ class GeckoPageDriver(
             target == "forward" -> session.goForward()
             target.startsWith("http://", ignoreCase = true) || target.startsWith("https://", ignoreCase = true) ->
                 session.loadUri(target)
-            else -> return@withContext ActionResult.Error("http 또는 https 주소, \"back\", \"forward\"만 쓸 수 있습니다.")
+            else -> return@withContext ActionResult.Error("Only an http or https address, \"back\" or \"forward\" can be used.")
         }
         settle()
-        ActionResult.Ok("이동했습니다. 페이지를 다시 읽으세요.")
+        ActionResult.Ok("Navigated. Read the page again.")
     }
 
     override suspend fun screenshot(): ByteArray? {
