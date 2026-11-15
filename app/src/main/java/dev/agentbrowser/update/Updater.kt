@@ -40,7 +40,7 @@ val UpdateState.hasUpdate: Boolean
 class Updater(
     private val installedVersion: String,
     /** False in debug builds, which install as a different app and must not fetch the release one. */
-    private val enabled: Boolean,
+    val enabled: Boolean,
     /** Downloads go here. The updater owns the directory and clears it. */
     private val dir: File,
     /** Hands the APK to the system; throws when it cannot. */
@@ -106,10 +106,12 @@ class Updater(
         }
     }
 
-    /** The system refused the install, or the user cancelled it. */
-    fun installFailed() {
+    /** The system refused the install, or the user backed out of it; backing out just offers the update again. */
+    fun installFailed(cancelled: Boolean = false) {
         val s = _state.value
-        if (s is UpdateState.Installing) _state.value = UpdateState.Failed(s.release)
+        if (s is UpdateState.Installing) {
+            _state.value = if (cancelled) UpdateState.Available(s.release) else UpdateState.Failed(s.release)
+        }
     }
 
     private fun fetchRelease(): Release? {

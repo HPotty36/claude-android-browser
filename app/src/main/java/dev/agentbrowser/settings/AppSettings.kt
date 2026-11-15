@@ -67,6 +67,11 @@ class AppSettings(context: Context, private val secrets: SecretStore, prefsName:
         _model.value = value
     }
 
+    /** When the app last looked for an update by itself, in epoch milliseconds; 0 when it never has. */
+    var lastUpdateCheck: Long
+        get() = prefs.getLong("last_update_check", 0L)
+        set(value) = prefs.edit().putLong("last_update_check", value).apply()
+
     fun apiKeyBlocking(): String? = apiKey
     fun modelBlocking(): String = _model.value
 }

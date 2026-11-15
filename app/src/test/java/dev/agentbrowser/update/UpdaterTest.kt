@@ -203,6 +203,16 @@ class UpdaterTest {
         assertEquals(UpdateState.Failed(release()), updater.state.value)
     }
 
+    @Test fun backingOutOfTheInstallOffersItAgain() = runBlocking {
+        server.enqueue(json(releaseJson()))
+        server.enqueue(apk())
+        val updater = updater()
+        updater.check()
+        updater.downloadAndInstall()
+        updater.installFailed(cancelled = true)
+        assertEquals(UpdateState.Available(release()), updater.state.value)
+    }
+
     @Test fun hasUpdateCoversEveryWaitingState() {
         val r = Release("0.5.0", "", "https://x/a.apk", 1, null)
         listOf(UpdateState.Available(r), UpdateState.Downloading(r, 0.5f), UpdateState.Installing(r), UpdateState.Failed(r))

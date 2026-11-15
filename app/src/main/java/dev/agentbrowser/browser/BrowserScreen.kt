@@ -39,6 +39,9 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -108,6 +111,7 @@ fun BrowserScreen(
     shortcuts: List<Shortcut>,
     searchUrl: String,
     isBookmarked: Boolean,
+    updateAvailable: Boolean,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
     onSettings: () -> Unit,
@@ -209,6 +213,7 @@ fun BrowserScreen(
                 chatOpen = chatOpen,
                 agentRunning = agentRunning,
                 isBookmarked = isBookmarked,
+                updateAvailable = updateAvailable,
                 onClaude = { chatOpen = !chatOpen },
                 onToggleBookmark = onToggleBookmark,
                 onBookmarks = onBookmarks,
@@ -227,6 +232,7 @@ private fun CommandBar(
     chatOpen: Boolean,
     agentRunning: Boolean,
     isBookmarked: Boolean,
+    updateAvailable: Boolean,
     onClaude: () -> Unit,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
@@ -366,7 +372,9 @@ private fun CommandBar(
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = s.menu)
+                        BadgedBox(badge = { if (updateAvailable) Badge() }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = s.menu)
+                        }
                     }
                     DropdownMenu(
                         expanded = menuOpen,
@@ -387,6 +395,7 @@ private fun CommandBar(
                                 },
                             )
                         }
+                        if (updateAvailable) item(s.updateMenu, Icons.Outlined.SystemUpdate, action = onSettings)
                         item(s.newTab, Icons.Filled.Add) { controller.newTab() }
                         item(s.bookmarks, Icons.Outlined.Bookmarks, action = onBookmarks)
                         item(s.home, Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)

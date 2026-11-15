@@ -91,6 +91,21 @@ interface Strings {
     val languageKorean: String
     fun apiKeySaved(lastFour: String): String
 
+    // Update
+    val update: String
+    val checkForUpdates: String
+    val checkingForUpdates: String
+    val upToDate: String
+    val installingUpdate: String
+    val updateFailed: String
+    val retry: String
+    val updateMenu: String
+    val updateDebugNote: String
+    fun currentVersion(version: String): String
+    fun updateAvailable(version: String): String
+    fun downloadUpdate(megabytes: Int): String
+    fun downloadingUpdate(percent: Int): String
+
     // Import from Chrome
     val importTitle: String
     val importBookmarks: String
@@ -194,6 +209,20 @@ object En : Strings {
     override val languageEnglish = "English"
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "Saved · ····$lastFour"
+
+    override val update = "Update"
+    override val checkForUpdates = "Check for updates"
+    override val checkingForUpdates = "Checking…"
+    override val upToDate = "You have the latest version"
+    override val installingUpdate = "Opening the installer…"
+    override val updateFailed = "The update didn't go through"
+    override val retry = "Try again"
+    override val updateMenu = "Update available"
+    override val updateDebugNote = "Debug builds don't update themselves"
+    override fun currentVersion(version: String) = "Version $version"
+    override fun updateAvailable(version: String) = "Version $version is available"
+    override fun downloadUpdate(megabytes: Int) = "Download and install ($megabytes MB)"
+    override fun downloadingUpdate(percent: Int) = "Downloading… $percent%"
 
     override val importTitle = "Import from Chrome"
     override val importBookmarks = "Import bookmarks"
@@ -299,6 +328,20 @@ object Ko : Strings {
     override val languageEnglish = "English"
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "저장됨 · ····$lastFour"
+
+    override val update = "업데이트"
+    override val checkForUpdates = "업데이트 확인"
+    override val checkingForUpdates = "확인하는 중…"
+    override val upToDate = "최신 버전입니다"
+    override val installingUpdate = "설치 화면을 여는 중…"
+    override val updateFailed = "업데이트하지 못했습니다"
+    override val retry = "다시 시도"
+    override val updateMenu = "업데이트 있음"
+    override val updateDebugNote = "디버그 빌드는 업데이트하지 않습니다"
+    override fun currentVersion(version: String) = "버전 $version"
+    override fun updateAvailable(version: String) = "새 버전 $version"
+    override fun downloadUpdate(megabytes: Int) = "다운로드 후 설치 (${megabytes}MB)"
+    override fun downloadingUpdate(percent: Int) = "다운로드 중… $percent%"
 
     override val importTitle = "Chrome에서 가져오기"
     override val importBookmarks = "북마크 가져오기"

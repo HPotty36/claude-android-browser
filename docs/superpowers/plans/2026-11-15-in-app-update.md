@@ -201,16 +201,14 @@ Strings (English / Korean):
 | `checkForUpdates` | Check for updates | 업데이트 확인 |
 | `checkingForUpdates` | Checking… | 확인하는 중… |
 | `upToDate` | You have the latest version | 최신 버전입니다 |
-| `fun updateAvailable(v)` | Version $v is available | 버전 $v 이(가) 나왔습니다 → `새 버전 $v`  |
+| `fun updateAvailable(v)` | Version $v is available | 새 버전 $v |
 | `fun downloadUpdate(mb)` | Download and install ($mb MB) | 다운로드 후 설치 (${mb}MB) |
 | `fun downloadingUpdate(percent)` | Downloading… $percent% | 다운로드 중… $percent% |
 | `installingUpdate` | Opening the installer… | 설치 화면을 여는 중… |
-| `updateFailed` | Couldn't update. Check your connection and try again. | 업데이트하지 못했습니다. 연결을 확인하고 다시 시도하세요. |
+| `updateFailed` | The update didn't go through | 업데이트하지 못했습니다 |
 | `retry` | Try again | 다시 시도 |
 | `updateMenu` | Update available | 업데이트 있음 |
 | `updateDebugNote` | Debug builds don't update themselves | 디버그 빌드는 업데이트하지 않습니다 |
-
-(Korean for `updateAvailable` is `새 버전 $v`.)
 
 - [ ] **Step 1: Write the failing test** in `StringsTest`:
 
