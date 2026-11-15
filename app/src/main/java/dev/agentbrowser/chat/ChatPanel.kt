@@ -2,6 +2,8 @@ package dev.agentbrowser.chat
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,6 +51,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +71,8 @@ fun ChatPanel(
     model: ChatViewModel,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
+    onDrag: (dragPx: Float) -> Unit,
+    onDragEnd: () -> Unit,
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -88,6 +95,26 @@ fun ChatPanel(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
+            // The whole header is the grip: drag it to resize the panel.
+            Column(
+                Modifier.fillMaxWidth().pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = { onDragEnd() },
+                        onDragCancel = { onDragEnd() },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount)
+                    }
+                },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier
+                        .padding(top = 8.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .background(colors.outline, RoundedCornerShape(2.dp))
+                        .semantics { contentDescription = "끌어서 패널 크기 조절" },
+                )
             Row(
                 Modifier.fillMaxWidth().height(44.dp).padding(start = 16.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -106,6 +133,7 @@ fun ChatPanel(
                 IconButton(onClick = onClose) {
                     Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "패널 접기", tint = colors.onSurfaceVariant)
                 }
+            }
             }
             LazyColumn(
                 state = listState,

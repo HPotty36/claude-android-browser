@@ -55,6 +55,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -66,6 +67,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.agentbrowser.chat.ChatPanel
 import dev.agentbrowser.chat.ChatViewModel
 import dev.agentbrowser.chat.ConfirmBar
+import dev.agentbrowser.chat.PANEL_DEFAULT
+import dev.agentbrowser.chat.PanelRest
+import dev.agentbrowser.chat.dragPanel
+import dev.agentbrowser.chat.restPanel
 import dev.agentbrowser.page.await
 import dev.agentbrowser.passwords.LoginPromptDelegate
 import dev.agentbrowser.passwords.LoginPromptDialog
@@ -89,6 +94,9 @@ fun BrowserScreen(
     // Expanded, the chat takes the whole screen: the page and both bars step aside until it is shrunk again.
     var chatExpanded by rememberSaveable { mutableStateOf(false) }
     val fullChat = chatOpen && chatExpanded
+    // The panel's share of the space between the two bars; dragging its top edge changes it.
+    var chatFraction by rememberSaveable { mutableStateOf(PANEL_DEFAULT) }
+    var areaPx by remember { mutableStateOf(0) }
     val agentRunning by chat.running.collectAsState()
     val pendingConfirm by chat.pendingConfirm.collectAsState()
     val loginPrompt by loginPrompts.prompt.collectAsState()
@@ -100,35 +108,57 @@ fun BrowserScreen(
 
     Column(modifier.fillMaxSize()) {
         if (!fullChat) AddressBar(controller, isBookmarked, onToggleBookmark)
-        AndroidView(
-            factory = { context ->
-                GeckoView(context).apply {
-                    setSession(controller.session)
-                    controller.capturePage = { capturePixels().await() }
-                }
-            },
-            onRelease = { view ->
-                controller.capturePage = null
-                view.releaseSession()
-            },
-            // The view stays attached while the chat is full screen so the page keeps its session.
-            modifier = if (fullChat) Modifier.fillMaxWidth().height(0.dp) else Modifier.weight(1f).fillMaxWidth(),
-        )
-        // Always on screen while Claude waits for an answer, whether or not the chat panel is open.
-        pendingConfirm?.let { description ->
-            ConfirmBar(description, onAnswer = chat::answerConfirm)
-        }
-        if (chatOpen) {
-            ChatPanel(
-                model = chat,
-                expanded = chatExpanded,
-                onToggleExpanded = { chatExpanded = !chatExpanded },
-                onClose = { chatOpen = false },
-                onOpenSettings = onSettings,
-                modifier = Modifier.weight(1f),
+        Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { areaPx = it.height }) {
+            // While the panel is open the page keeps a sliver at least, so its view never loses its session.
+            val pageWeight = if (chatOpen) (1f - chatFraction).coerceAtLeast(0.05f) else 1f
+            AndroidView(
+                factory = { context ->
+                    GeckoView(context).apply {
+                        setSession(controller.session)
+                        controller.capturePage = { capturePixels().await() }
+                    }
+                },
+                onRelease = { view ->
+                    controller.capturePage = null
+                    view.releaseSession()
+                },
+                modifier = if (fullChat) Modifier.fillMaxWidth().height(0.dp) else Modifier.weight(pageWeight).fillMaxWidth(),
             )
-        } else if (agentRunning) {
-            RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop)
+            // Always on screen while Claude waits for an answer, whether or not the chat panel is open.
+            pendingConfirm?.let { description ->
+                ConfirmBar(description, onAnswer = chat::answerConfirm)
+            }
+            if (chatOpen) {
+                ChatPanel(
+                    model = chat,
+                    expanded = chatExpanded,
+                    onToggleExpanded = {
+                        chatExpanded = !chatExpanded
+                        if (!chatExpanded) chatFraction = PANEL_DEFAULT
+                    },
+                    onDrag = { dragPx ->
+                        // Pulling down from full screen starts from just under the top.
+                        val from = if (chatExpanded) 1f else chatFraction
+                        chatExpanded = false
+                        chatFraction = dragPanel(from, dragPx, areaPx.toFloat())
+                    },
+                    onDragEnd = {
+                        when (val rest = restPanel(chatFraction)) {
+                            PanelRest.Full -> chatExpanded = true
+                            PanelRest.Closed -> {
+                                chatOpen = false
+                                chatFraction = PANEL_DEFAULT
+                            }
+                            is PanelRest.Partial -> chatFraction = rest.fraction
+                        }
+                    },
+                    onClose = { chatOpen = false },
+                    onOpenSettings = onSettings,
+                    modifier = Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)),
+                )
+            } else if (agentRunning) {
+                RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop)
+            }
         }
         if (!fullChat) BottomBar(
             canGoBack = canGoBack,
