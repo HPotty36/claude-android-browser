@@ -22,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,32 +33,44 @@ import dev.agentbrowser.R
 
 data class Shortcut(val title: String, val url: String)
 
-private val DEFAULT_SHORTCUTS = listOf(
-    Shortcut("Google", "https://www.google.com"),
-    Shortcut("네이버", "https://m.naver.com"),
-    Shortcut("YouTube", "https://m.youtube.com"),
-    Shortcut("위키백과", "https://ko.wikipedia.org"),
-)
-
-/** What a blank tab shows: the mark and the user's sites. Typing happens in the bar below. */
+/**
+ * What a blank tab shows: the mark at the centre with its ring echoed outward across the page, and the
+ * user's own bookmarks under it when there are any. Typing happens in the bar below.
+ */
 @Composable
 fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
-    val shortcuts = bookmarks.ifEmpty { DEFAULT_SHORTCUTS }.take(8)
-    Surface(color = colors.surface, modifier = modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-            Spacer(Modifier.weight(0.7f))
-            Icon(
-                painterResource(R.drawable.ic_mark),
-                contentDescription = null,
-                tint = colors.primary,
-                modifier = Modifier.size(44.dp),
-            )
-            Spacer(Modifier.height(36.dp))
-            shortcuts.chunked(4).forEach { row ->
-                Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    row.forEach { shortcut -> ShortcutTile(shortcut, onOpen, Modifier.weight(1f)) }
-                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+    val shortcuts = bookmarks.take(8)
+    Surface(color = colors.surface, modifier = modifier.fillMaxSize().clip(RoundedCornerShape(0.dp))) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(Modifier.weight(if (shortcuts.isEmpty()) 1f else 0.7f))
+            Box(
+                Modifier.size(128.dp).drawBehind {
+                    // The mark's ring, repeated outward and fading, fills the page without a word.
+                    listOf(120.dp to 1f, 200.dp to 0.7f, 300.dp to 0.45f, 420.dp to 0.25f).forEach { (radius, alpha) ->
+                        drawCircle(
+                            color = colors.outlineVariant.copy(alpha = alpha),
+                            radius = radius.toPx(),
+                            style = Stroke(width = 1.dp.toPx()),
+                        )
+                    }
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(R.drawable.ic_mark),
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(128.dp),
+                )
+            }
+            if (shortcuts.isNotEmpty()) {
+                Spacer(Modifier.height(56.dp))
+                shortcuts.chunked(4).forEach { row ->
+                    Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        row.forEach { shortcut -> ShortcutTile(shortcut, onOpen, Modifier.weight(1f)) }
+                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
             }
             Spacer(Modifier.weight(1f))
