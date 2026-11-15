@@ -31,12 +31,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.agentbrowser.chat.ChatPanel
 import dev.agentbrowser.chat.ChatViewModel
 import dev.agentbrowser.page.await
+import dev.agentbrowser.passwords.LoginPromptDelegate
+import dev.agentbrowser.passwords.LoginPromptDialog
 import org.mozilla.geckoview.GeckoView
 
 @Composable
 fun BrowserScreen(
     controller: BrowserController,
     chat: ChatViewModel,
+    loginPrompts: LoginPromptDelegate,
     onBookmarks: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,6 +50,8 @@ fun BrowserScreen(
     var address by remember { mutableStateOf(url) }
     var chatOpen by rememberSaveable { mutableStateOf(false) }
     val agentRunning by chat.running.collectAsState()
+    val loginPrompt by loginPrompts.prompt.collectAsState()
+    loginPrompt?.let { LoginPromptDialog(it) }
     val focus = LocalFocusManager.current
 
     LaunchedEffect(url) { address = url }
