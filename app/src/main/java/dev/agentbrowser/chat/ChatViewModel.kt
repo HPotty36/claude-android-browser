@@ -41,7 +41,7 @@ class ChatViewModel(private val loop: AgentLoop, private val scope: CoroutineSco
             is AgentEvent.Action -> add(ChatItem.Action(event.description))
             is AgentEvent.ConfirmRequest -> _pendingConfirm.value = event.description
             is AgentEvent.Failed -> add(ChatItem.Notice(event.message, openSettings = event.isAuth))
-            AgentEvent.StepLimit -> add(ChatItem.Notice("동작 횟수 상한에 도달해 멈췄어요. 계속하려면 다시 지시하세요."))
+            AgentEvent.StepLimit -> add(ChatItem.Notice("한 번에 할 수 있는 동작 수를 넘어 멈췄어요."))
             AgentEvent.Done -> Unit
         }
     }

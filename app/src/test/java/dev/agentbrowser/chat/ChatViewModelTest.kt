@@ -71,7 +71,7 @@ class ChatViewModelTest {
         val model = model(client, maxSteps = 2)
         model.send("계속 읽어")
         assertEquals(
-            ChatItem.Notice("동작 횟수 상한에 도달해 멈췄어요. 계속하려면 다시 지시하세요.", openSettings = false),
+            ChatItem.Notice("한 번에 할 수 있는 동작 수를 넘어 멈췄어요.", openSettings = false),
             model.items.value.last(),
         )
     }

@@ -12,9 +12,9 @@ An Android browser you can hand over to Claude: it reads the page, clicks, types
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4-0F6B5C?logo=kotlin&logoColor=white)
 ![Engine: GeckoView](https://img.shields.io/badge/engine-GeckoView-0F6B5C?logo=firefoxbrowser&logoColor=white)
 
-<img src="docs/screenshots/start.png" width="250" alt="시작 화면">&nbsp;
 <img src="docs/screenshots/browser.png" width="250" alt="브라우저 화면">&nbsp;
-<img src="docs/screenshots/chat.png" width="250" alt="Claude 패널">
+<img src="docs/screenshots/chat.png" width="250" alt="Claude 패널">&nbsp;
+<img src="docs/screenshots/tabs.png" width="250" alt="탭 목록">
 
 [내려받기](#설치) · [쓰는 법](#쓰는-법) · [동작 방식](#동작-방식) · [안전장치](#안전장치) · [직접 빌드](#직접-빌드)
 
@@ -32,7 +32,8 @@ An Android browser you can hand over to Claude: it reads the page, clicks, types
 | | |
 | --- | --- |
 | **페이지 조작** | 읽기, 클릭, 입력, 스크롤, 이동, 화면 캡처. Claude가 조작하는 동안 페이지에 청록색 테두리가 둘러집니다. |
-| **한 손 조작** | 주소창, 뒤로, Claude 버튼, 메뉴가 화면 아래의 바 하나에 모여 있습니다. |
+| **한 손 조작** | 주소창과 뒤로, 앞으로, 북마크, Claude 버튼, 탭, 메뉴가 화면 아래의 바 하나에 모여 있습니다. |
+| **탭** | 여러 페이지를 열어 두고 목록에서 바꾸거나 닫습니다. 새 창으로 열리는 링크는 새 탭이 됩니다. |
 | **확인 절차** | 결제, 주문, 전송, 삭제, 계정 설정 변경은 "진행"을 눌러야 실행됩니다. |
 | **패널 크기 조절** | Claude 패널의 위쪽을 끌어 원하는 높이로 조절합니다. 끝까지 올리거나 버튼을 누르면 전체 화면이 됩니다. |
 | **언제든 중지** | 작업 중에는 중지 버튼이 항상 화면에 있고, 한 번의 지시에서 동작은 최대 25회입니다. |
@@ -111,7 +112,8 @@ Claude에게는 스크린샷 대신 버튼, 링크, 입력창에 번호를 붙�
 
 ## 알려진 한계
 
-- 탭은 하나입니다. 방문 기록, 다운로드 관리, 광고 차단이 없습니다.
+- 방문 기록, 다운로드 관리, 광고 차단이 없습니다. 열어 둔 탭은 앱을 종료하면 사라집니다.
+- Claude는 지금 보고 있는 탭에서만 동작합니다. 작업 중에 탭을 바꾸면 바꾼 탭에서 이어 갑니다.
 - 자바스크립트 alert/confirm, `<select>` 드롭다운, 파일 업로드 선택 창이 뜨지 않습니다.
 - 카카오 로그인이나 결제 앱을 부르는 `intent://` 링크를 처리하지 않습니다.
 - iframe 안의 요소는 Claude가 읽거나 조작하지 못합니다.
@@ -124,11 +126,11 @@ Android Studio(JBR 포함)가 필요합니다. 없는 SDK 플랫폼은 첫 빌�
 ```bash
 ./gradlew :app:installDebug              # 연결된 폰에 설치
 ./gradlew :app:testDebugUnitTest         # 단위 테스트
-./gradlew :app:connectedDebugAndroidTest # 폰에서 도는 테스트 (끝나면 앱을 지우므로 데이터가 사라집니다)
+./gradlew :app:connectedDebugAndroidTest # 폰에서 도는 테스트
 ./gradlew :app:assembleRelease           # 릴리스 APK
 ```
 
-릴리스 서명은 프로젝트 루트의 `keystore.properties`(`storeFile`, `storePassword`, `keyAlias`, `keyPassword`)를 읽습니다. 없으면 디버그 키로 서명합니다.
+디버그 빌드는 `dev.agentbrowser.debug`라는 별도 앱으로 설치되어 릴리스로 설치한 앱의 데이터를 건드리지 않습니다. 릴리스 서명은 프로젝트 루트의 `keystore.properties`(`storeFile`, `storePassword`, `keyAlias`, `keyPassword`)를 읽습니다. 없으면 디버그 키로 서명합니다.
 
 <details>
 <summary>Windows에서 <code>Unable to establish loopback connection</code>이 날 때</summary>

@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -23,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -38,10 +42,16 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,6 +75,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -87,6 +99,8 @@ import dev.agentbrowser.passwords.LoginPromptDialog
 import dev.agentbrowser.ui.PillField
 import org.mozilla.geckoview.GeckoView
 
+private val PAGE_SUGGESTIONS = listOf("이 페이지 요약해 줘", "여기서 가격 찾아 줘")
+
 @Composable
 fun BrowserScreen(
     controller: BrowserController,
@@ -100,6 +114,7 @@ fun BrowserScreen(
     modifier: Modifier = Modifier,
 ) {
     val url by controller.url.collectAsState()
+    val tab by controller.current.collectAsState()
     val canGoBack by controller.canGoBack.collectAsState()
     var chatOpen by rememberSaveable { mutableStateOf(false) }
     // Expanded, the chat takes the whole screen: the page and the bar step aside until it is shrunk again.
@@ -127,8 +142,15 @@ fun BrowserScreen(
                 AndroidView(
                     factory = { context ->
                         GeckoView(context).apply {
-                            setSession(controller.session)
+                            setSession(tab.session)
                             controller.capturePage = { capturePixels().await() }
+                        }
+                    },
+                    // Switching tabs hands the view the other tab's session.
+                    update = { view ->
+                        if (view.session !== tab.session) {
+                            view.releaseSession()
+                            view.setSession(tab.session)
                         }
                     },
                     onRelease = { view ->
@@ -169,6 +191,7 @@ fun BrowserScreen(
                             is PanelRest.Partial -> chatFraction = rest.fraction
                         }
                     },
+                    suggestions = if (onStartPage) emptyList() else PAGE_SUGGESTIONS,
                     onClose = { chatOpen = false },
                     onOpenSettings = onSettings,
                     modifier = Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)),
@@ -193,7 +216,7 @@ fun BrowserScreen(
     }
 }
 
-/** The one floating bar at the bottom: back, the address, Claude, and a menu for the rest. */
+/** The floating bar at the bottom: the address on top, the controls under it. */
 @Composable
 private fun CommandBar(
     controller: BrowserController,
@@ -210,128 +233,213 @@ private fun CommandBar(
     val progress by controller.progress.collectAsState()
     val canGoBack by controller.canGoBack.collectAsState()
     val canGoForward by controller.canGoForward.collectAsState()
+    val tabs by controller.tabs.collectAsState()
     val loading = progress in 1..99 && !onStartPage
     // Editing swaps the read-only host for a fresh text field, so the field always starts from the full URL.
     var editing by remember { mutableStateOf<TextFieldValue?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var tabsOpen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
     val colors = MaterialTheme.colorScheme
 
     BackHandler(enabled = editing != null) { editing = null }
+    if (tabsOpen) TabsSheet(controller, onDismiss = { tabsOpen = false })
 
     Surface(
         color = colors.surfaceContainerHigh,
         shape = RoundedCornerShape(28.dp),
         border = BorderStroke(1.dp, colors.outlineVariant),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).height(56.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        Box {
+        Column {
             val draft = editing
             if (draft != null) {
                 val requester = remember { FocusRequester() }
                 var hadFocus by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) { requester.requestFocus() }
-                Row(Modifier.fillMaxSize().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PillField(
-                        value = draft,
-                        onValueChange = { editing = it },
-                        placeholder = "검색어 또는 주소 입력",
-                        minHeight = 44.dp,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = {
-                            if (draft.text.isNotBlank()) controller.load(toUrl(draft.text))
-                            focus.clearFocus()
-                            editing = null
-                        }),
-                        modifier = Modifier.weight(1f).focusRequester(requester).onFocusChanged { state ->
-                            if (state.isFocused) hadFocus = true else if (hadFocus) editing = null
-                        },
-                        trailing = {
-                            IconButton(onClick = { editing = TextFieldValue("") }) {
-                                Icon(Icons.Filled.Close, contentDescription = "지우기", tint = colors.onSurfaceVariant)
-                            }
-                        },
-                    )
-                }
-            } else {
-                Row(Modifier.fillMaxSize().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = controller::back, enabled = canGoBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
-                    }
-                    Row(
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable(onClickLabel = "주소 편집") {
-                                val text = if (onStartPage) "" else url
-                                editing = TextFieldValue(text, TextRange(0, text.length))
-                            }
-                            .padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            when {
-                                onStartPage -> Icons.Outlined.Search
-                                url.startsWith("https://") -> Icons.Outlined.Lock
-                                else -> Icons.Outlined.Public
-                            },
-                            contentDescription = null,
-                            tint = colors.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            if (onStartPage) "검색어 또는 주소 입력" else displayHost(url),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (onStartPage) FontWeight.Normal else FontWeight.Medium,
-                            color = if (onStartPage) colors.onSurfaceVariant else colors.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    ClaudeOrb(active = chatOpen, running = agentRunning, onClick = onClaude)
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "메뉴")
+                PillField(
+                    value = draft,
+                    onValueChange = { editing = it },
+                    placeholder = "검색어 또는 주소 입력",
+                    minHeight = 48.dp,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                    keyboardActions = KeyboardActions(onGo = {
+                        if (draft.text.isNotBlank()) controller.load(toUrl(draft.text))
+                        focus.clearFocus()
+                        editing = null
+                    }),
+                    modifier = Modifier.fillMaxWidth().padding(start = 4.dp).focusRequester(requester).onFocusChanged { state ->
+                        if (state.isFocused) hadFocus = true else if (hadFocus) editing = null
+                    },
+                    trailing = {
+                        IconButton(onClick = { editing = TextFieldValue("") }) {
+                            Icon(Icons.Filled.Close, contentDescription = "지우기", tint = colors.onSurfaceVariant)
                         }
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                            containerColor = colors.surfaceContainerHigh,
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, colors.outlineVariant),
-                        ) {
-                            @Composable
-                            fun item(label: String, icon: ImageVector, enabled: Boolean = true, action: () -> Unit) {
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    leadingIcon = { Icon(icon, contentDescription = null) },
-                                    enabled = enabled,
-                                    onClick = {
-                                        menuOpen = false
-                                        action()
-                                    },
-                                )
-                            }
-                            item("앞으로", Icons.AutoMirrored.Filled.ArrowForward, enabled = canGoForward, action = controller::forward)
-                            if (loading) item("로딩 중지", Icons.Filled.Close, action = controller::stop)
-                            else item("새로고침", Icons.Filled.Refresh, enabled = !onStartPage, action = controller::reload)
-                            if (isBookmarked) item("북마크에서 삭제", Icons.Filled.Star, action = onToggleBookmark)
-                            else item("북마크에 추가", Icons.Outlined.StarBorder, enabled = url.startsWith("http"), action = onToggleBookmark)
-                            item("북마크", Icons.Outlined.Bookmarks, action = onBookmarks)
-                            item("홈", Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)
-                            item("설정", Icons.Outlined.Settings, action = onSettings)
+                    },
+                )
+            } else {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clickable(onClickLabel = "주소 편집") {
+                            val text = if (onStartPage) "" else url
+                            editing = TextFieldValue(text, TextRange(0, text.length))
+                        }
+                        .padding(start = 20.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        when {
+                            onStartPage -> Icons.Outlined.Search
+                            url.startsWith("https://") -> Icons.Outlined.Lock
+                            else -> Icons.Outlined.Public
+                        },
+                        contentDescription = null,
+                        tint = colors.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (onStartPage) "검색어 또는 주소 입력" else displayHost(url),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (onStartPage) FontWeight.Normal else FontWeight.Medium,
+                        color = if (onStartPage) colors.onSurfaceVariant else colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (loading) {
+                        IconButton(onClick = controller::stop) {
+                            Icon(Icons.Filled.Close, contentDescription = "로딩 중지", tint = colors.onSurfaceVariant)
+                        }
+                    } else if (!onStartPage) {
+                        IconButton(onClick = controller::reload) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "새로고침", tint = colors.onSurfaceVariant)
                         }
                     }
                 }
             }
+            // The rule between the rows doubles as the loading bar.
             if (loading) {
                 LinearProgressIndicator(
                     progress = { progress / 100f },
                     color = colors.primary,
-                    trackColor = Color.Transparent,
-                    modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().height(2.dp),
+                    trackColor = colors.outlineVariant,
+                    modifier = Modifier.fillMaxWidth().height(1.dp),
+                )
+            } else {
+                HorizontalDivider(color = colors.outlineVariant)
+            }
+            Row(
+                Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = controller::back, enabled = canGoBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
+                }
+                IconButton(onClick = controller::forward, enabled = canGoForward) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "앞으로")
+                }
+                IconButton(onClick = onToggleBookmark, enabled = url.startsWith("http")) {
+                    if (isBookmarked) Icon(Icons.Filled.Star, contentDescription = "북마크에서 삭제", tint = colors.primary)
+                    else Icon(Icons.Outlined.StarBorder, contentDescription = "북마크에 추가")
+                }
+                ClaudeOrb(active = chatOpen, running = agentRunning, onClick = onClaude)
+                IconButton(onClick = { tabsOpen = true }) {
+                    Box(
+                        Modifier.size(22.dp).border(1.5.dp, LocalContentColor.current, RoundedCornerShape(6.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            if (tabs.size > 99) "99" else tabs.size.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.semantics { contentDescription = "탭 ${tabs.size}개" },
+                        )
+                    }
+                }
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "메뉴")
+                    }
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                        containerColor = colors.surfaceContainerHigh,
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, colors.outlineVariant),
+                    ) {
+                        @Composable
+                        fun item(label: String, icon: ImageVector, enabled: Boolean = true, action: () -> Unit) {
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                leadingIcon = { Icon(icon, contentDescription = null) },
+                                enabled = enabled,
+                                onClick = {
+                                    menuOpen = false
+                                    action()
+                                },
+                            )
+                        }
+                        item("새 탭", Icons.Filled.Add) { controller.newTab() }
+                        item("북마크", Icons.Outlined.Bookmarks, action = onBookmarks)
+                        item("홈", Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)
+                        item("설정", Icons.Outlined.Settings, action = onSettings)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The open tabs: tap one to switch, close any of them, or open a new one. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TabsSheet(controller: BrowserController, onDismiss: () -> Unit) {
+    val tabs by controller.tabs.collectAsState()
+    val current by controller.current.collectAsState()
+    val colors = MaterialTheme.colorScheme
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerHigh) {
+        Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("탭 ${tabs.size}개", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = {
+                controller.newTab()
+                onDismiss()
+            }) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("새 탭")
+            }
+        }
+        LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+            items(tabs, key = { it.id }) { tab ->
+                val title by tab.title.collectAsState()
+                val url by tab.url.collectAsState()
+                val blank = url.isEmpty() || url == HOME_URL
+                val selected = tab.id == current.id
+                ListItem(
+                    headlineContent = {
+                        Text(if (blank) "새 탭" else title.ifBlank { displayHost(url) }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    supportingContent = if (blank) null else {
+                        { Text(displayHost(url), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { controller.close(tab.id) }) {
+                            Icon(Icons.Filled.Close, contentDescription = "탭 닫기", tint = colors.onSurfaceVariant)
+                        }
+                    },
+                    colors = ListItemDefaults.colors(
+                        containerColor = if (selected) colors.primaryContainer else Color.Transparent,
+                        headlineColor = if (selected) colors.onPrimaryContainer else colors.onSurface,
+                        supportingColor = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                    ),
+                    modifier = Modifier.padding(vertical = 2.dp).clip(RoundedCornerShape(16.dp)).clickable {
+                        controller.select(tab.id)
+                        onDismiss()
+                    },
                 )
             }
         }

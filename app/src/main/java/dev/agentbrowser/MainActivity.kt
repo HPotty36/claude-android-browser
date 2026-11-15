@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.agentbrowser.bookmarks.BookmarksScreen
 import dev.agentbrowser.browser.BrowserScreen
+import dev.agentbrowser.browser.HOME_URL
 import dev.agentbrowser.browser.Shortcut
 import dev.agentbrowser.passwords.PasswordsScreen
 import dev.agentbrowser.settings.ImportSection
@@ -99,7 +100,10 @@ class MainActivity : ComponentActivity() {
     private fun openLink(intent: Intent?) {
         val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
         if (link.startsWith("http://", ignoreCase = true) || link.startsWith("https://", ignoreCase = true)) {
-            (application as App).browser.load(link)
+            val browser = (application as App).browser
+            // A link from another app gets its own tab unless the current one is still blank.
+            val blank = browser.url.value.let { it.isEmpty() || it == HOME_URL }
+            if (blank) browser.load(link) else browser.newTab(link)
         }
     }
 }

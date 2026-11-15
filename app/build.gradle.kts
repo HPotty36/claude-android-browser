@@ -22,8 +22,8 @@ android {
         applicationId = "dev.agentbrowser"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.2.0"
+        versionCode = 5
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -38,6 +38,8 @@ android {
         }
     }
     buildTypes {
+        // A separate app id, so installing or testing a debug build never touches the release install's data.
+        debug { applicationIdSuffix = ".debug" }
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName(if (keystoreProps.containsKey("storeFile")) "release" else "debug")

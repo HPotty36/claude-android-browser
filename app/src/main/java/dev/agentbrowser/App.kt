@@ -28,7 +28,7 @@ class App : Application() {
     val browser: BrowserController by lazy {
         BrowserController(this).also { controller ->
             controller.runtime.autocompleteStorageDelegate = GeckoLoginStorage(logins, scope)
-            controller.session.promptDelegate = loginPrompts
+            controller.promptDelegate = loginPrompts
         }
     }
 

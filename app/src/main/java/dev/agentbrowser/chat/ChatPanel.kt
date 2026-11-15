@@ -63,14 +63,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.agentbrowser.ui.PillField
 
-private val SUGGESTIONS = listOf("이 페이지 요약해 줘", "핵심만 세 줄로 정리해 줘", "이 페이지에서 가격 찾아 줘")
-
 /** The lower half of the browser screen: the conversation with Claude and what it is doing to the page. */
 @Composable
 fun ChatPanel(
     model: ChatViewModel,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
+    suggestions: List<String>,
     onDrag: (dragPx: Float) -> Unit,
     onDragEnd: () -> Unit,
     onClose: () -> Unit,
@@ -143,13 +142,7 @@ fun ChatPanel(
                 if (items.isEmpty()) {
                     item {
                         Column {
-                            Text(
-                                "이 페이지에서 할 일을 적어 주세요.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colors.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.height(12.dp))
-                            SUGGESTIONS.forEach { suggestion ->
+                            suggestions.forEach { suggestion ->
                                 SuggestionChip(
                                     onClick = { model.send(suggestion) },
                                     label = { Text(suggestion) },
@@ -187,7 +180,7 @@ fun ChatPanel(
                 PillField(
                     value = draft,
                     onValueChange = { draft = it },
-                    placeholder = "이 페이지에서 할 일",
+                    placeholder = "시킬 일 입력",
                     minHeight = 44.dp,
                     singleLine = false,
                     maxLines = 4,
@@ -230,7 +223,7 @@ fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.error, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("이 작업을 진행할까요?", style = MaterialTheme.typography.titleSmall)
+                    Text("진행할까요?", style = MaterialTheme.typography.titleSmall)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(description, style = MaterialTheme.typography.bodyMedium)

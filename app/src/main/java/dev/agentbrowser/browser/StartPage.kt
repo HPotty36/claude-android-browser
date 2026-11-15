@@ -38,7 +38,7 @@ private val DEFAULT_SHORTCUTS = listOf(
     Shortcut("위키백과", "https://ko.wikipedia.org"),
 )
 
-/** What a new session opens on: the mark, one question, and the user's sites. */
+/** What a blank tab shows: the mark and the user's sites. Typing happens in the bar below. */
 @Composable
 fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
@@ -51,18 +51,6 @@ fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier
                 contentDescription = null,
                 tint = colors.primary,
                 modifier = Modifier.size(44.dp),
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "어디로 갈까요?",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "주소를 입력하거나 Claude에게 맡기세요.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = colors.onSurfaceVariant,
             )
             Spacer(Modifier.height(36.dp))
             shortcuts.chunked(4).forEach { row ->

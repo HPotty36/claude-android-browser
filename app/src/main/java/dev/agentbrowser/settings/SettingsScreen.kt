@@ -75,7 +75,6 @@ private fun ApiKeyField(settings: AppSettings) {
             value = draft,
             onValueChange = { draft = it },
             singleLine = true,
-            label = { Text("API 키") },
             placeholder = { Text("sk-ant-…") },
             supportingText = {
                 Text(if (hint != null) "저장됨 · ····$hint" else "이 기기에만 암호화해 저장해요.")
