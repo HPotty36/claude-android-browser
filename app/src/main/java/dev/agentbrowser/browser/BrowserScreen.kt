@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,13 +28,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import dev.agentbrowser.chat.ChatPanel
+import dev.agentbrowser.chat.ChatViewModel
+import dev.agentbrowser.page.await
 import org.mozilla.geckoview.GeckoView
 
 @Composable
 fun BrowserScreen(
     controller: BrowserController,
+    chat: ChatViewModel,
     onBookmarks: () -> Unit,
-    onClaude: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -41,10 +45,13 @@ fun BrowserScreen(
     val canGoBack by controller.canGoBack.collectAsState()
     val canGoForward by controller.canGoForward.collectAsState()
     var address by remember { mutableStateOf(url) }
+    var chatOpen by rememberSaveable { mutableStateOf(false) }
+    val agentRunning by chat.running.collectAsState()
     val focus = LocalFocusManager.current
 
     LaunchedEffect(url) { address = url }
     BackHandler(enabled = canGoBack) { controller.back() }
+    BackHandler(enabled = chatOpen) { chatOpen = false }
 
     Column(modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -63,9 +70,30 @@ fun BrowserScreen(
             TextButton(onClick = { controller.reload() }) { Text("새로고침") }
         }
         AndroidView(
-            factory = { context -> GeckoView(context).apply { setSession(controller.session) } },
+            factory = { context ->
+                GeckoView(context).apply {
+                    setSession(controller.session)
+                    controller.capturePage = { capturePixels().await() }
+                }
+            },
+            onRelease = { view ->
+                controller.capturePage = null
+                view.releaseSession()
+            },
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
+        if (chatOpen) {
+            ChatPanel(chat, onClose = { chatOpen = false }, onOpenSettings = onSettings, modifier = Modifier.weight(1f))
+        } else if (agentRunning) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Claude 작업 중", modifier = Modifier.weight(1f))
+                TextButton(onClick = { chatOpen = true }) { Text("보기") }
+                Button(onClick = { chat.stop() }) { Text("정지") }
+            }
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -74,7 +102,7 @@ fun BrowserScreen(
             TextButton(onClick = { controller.back() }, enabled = canGoBack) { Text("뒤로") }
             TextButton(onClick = { controller.forward() }, enabled = canGoForward) { Text("앞으로") }
             TextButton(onClick = onBookmarks) { Text("북마크") }
-            Button(onClick = onClaude) { Text("Claude") }
+            Button(onClick = { chatOpen = !chatOpen }) { Text("Claude") }
             TextButton(onClick = onSettings) { Text("설정") }
         }
     }

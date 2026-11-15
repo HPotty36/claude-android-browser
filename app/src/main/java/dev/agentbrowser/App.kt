@@ -1,9 +1,24 @@
 package dev.agentbrowser
 
 import android.app.Application
+import dev.agentbrowser.agent.AgentLoop
+import dev.agentbrowser.agent.HttpClaudeClient
 import dev.agentbrowser.browser.BrowserController
+import dev.agentbrowser.chat.ChatViewModel
+import dev.agentbrowser.settings.AppSettings
+import dev.agentbrowser.settings.SecretStore
+import kotlinx.coroutines.MainScope
 
 class App : Application() {
+    val scope = MainScope()
+    val secrets: SecretStore by lazy { SecretStore() }
+    val settings: AppSettings by lazy { AppSettings(this, secrets) }
+
     /** One GeckoRuntime per process, so the controller lives with the application. */
     val browser: BrowserController by lazy { BrowserController(this) }
+
+    val chat: ChatViewModel by lazy {
+        val client = HttpClaudeClient(settings::apiKeyBlocking, settings::modelBlocking)
+        ChatViewModel(AgentLoop(client, browser.pageDriver), scope)
+    }
 }

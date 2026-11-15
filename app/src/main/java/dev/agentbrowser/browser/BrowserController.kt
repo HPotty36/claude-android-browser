@@ -1,6 +1,10 @@
 package dev.agentbrowser.browser
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.util.Log
+import dev.agentbrowser.page.GeckoPageDriver
+import dev.agentbrowser.page.PageDriver
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.mozilla.geckoview.GeckoRuntime
@@ -20,6 +24,15 @@ class BrowserController(context: Context) {
     val title: StateFlow<String> = _title
     val canGoBack: StateFlow<Boolean> = _canGoBack
     val canGoForward: StateFlow<Boolean> = _canGoForward
+
+    /** Set by the screen that shows the page; returns what is visible, or null when nothing is attached. */
+    var capturePage: (suspend () -> Bitmap?)? = null
+
+    private val driver = GeckoPageDriver(session) { capturePage?.invoke() }
+    val pageDriver: PageDriver = driver
+
+    private var extensionReady = false
+    private var firstUrl = HOME_URL
 
     init {
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
@@ -46,10 +59,36 @@ class BrowserController(context: Context) {
             }
         }
         session.open(runtime)
-        load(HOME_URL)
+        installAgentExtension()
     }
 
-    fun load(url: String) = session.loadUri(url)
+    /** The first page loads only after the extension is ready, so its content script can reach the app. */
+    private fun installAgentExtension() {
+        runtime.webExtensionController
+            .ensureBuiltIn("resource://android/assets/agent/", "agent@agentbrowser")
+            .accept(
+                { extension ->
+                    if (extension != null) {
+                        session.webExtensionController.setMessageDelegate(extension, driver, "browser")
+                    }
+                    startLoading()
+                },
+                { error ->
+                    Log.e("AgentBrowser", "agent extension failed to install", error)
+                    startLoading()
+                },
+            )
+    }
+
+    private fun startLoading() {
+        extensionReady = true
+        session.loadUri(firstUrl)
+    }
+
+    /** A load requested before the extension is ready replaces the first page instead of racing it. */
+    fun load(url: String) {
+        if (extensionReady) session.loadUri(url) else firstUrl = url
+    }
     fun back() = session.goBack()
     fun forward() = session.goForward()
     fun reload() = session.reload()
