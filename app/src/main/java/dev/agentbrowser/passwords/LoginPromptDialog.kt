@@ -17,7 +17,7 @@ fun LoginPromptDialog(prompt: LoginPrompt) {
         is LoginPrompt.Save -> AlertDialog(
             onDismissRequest = { prompt.respond(false) },
             title = { Text("비밀번호를 저장할까요?") },
-            text = { Text("${prompt.origin}\n${prompt.username.ifEmpty { "(아이디 없음)" }}") },
+            text = { Text("${prompt.origin}\n${prompt.username.ifEmpty { "아이디 없음" }}") },
             confirmButton = { TextButton(onClick = { prompt.respond(true) }) { Text("저장") } },
             dismissButton = { TextButton(onClick = { prompt.respond(false) }) { Text("저장 안 함") } },
         )
@@ -28,7 +28,7 @@ fun LoginPromptDialog(prompt: LoginPrompt) {
                 Column {
                     prompt.usernames.forEachIndexed { index, username ->
                         Text(
-                            username.ifEmpty { "(아이디 없음)" },
+                            username.ifEmpty { "아이디 없음" },
                             modifier = Modifier.fillMaxWidth().clickable { prompt.respond(index) }.padding(vertical = 12.dp),
                         )
                     }

@@ -45,4 +45,18 @@ class BookmarkRepositoryTest {
         repo.delete(saved.id)
         assertEquals(emptyList<Bookmark>(), repo.all.value)
     }
+
+    @Test fun restoreBringsBackFolder() = runBlocking {
+        repo.import(listOf(b))
+        val saved = repo.all.value.single()
+        repo.delete(saved.id)
+        repo.restore(saved)
+        assertEquals("B" to "북마크바/개발", repo.all.value.single().let { it.title to it.folder })
+    }
+
+    @Test fun deleteByUrlRemovesOnlyThatUrl() = runBlocking {
+        repo.import(listOf(a, b))
+        repo.deleteByUrl("https://a.com/")
+        assertEquals(listOf("https://b.com/"), repo.all.value.map { it.url })
+    }
 }

@@ -51,6 +51,17 @@ class BookmarkRepository(private val db: AppDatabase) {
         insert(title.ifBlank { url }, url, "").also { _all.value = load() }
     }
 
+    /** Puts back a bookmark that was just deleted, folder included. */
+    suspend fun restore(bookmark: Bookmark) = withContext(Dispatchers.IO) {
+        insert(bookmark.title, bookmark.url, bookmark.folder)
+        _all.value = load()
+    }
+
+    suspend fun deleteByUrl(url: String) = withContext(Dispatchers.IO) {
+        db.writableDatabase.delete("bookmarks", "url = ?", arrayOf(url))
+        _all.value = load()
+    }
+
     suspend fun delete(id: Long) = withContext(Dispatchers.IO) {
         db.writableDatabase.delete("bookmarks", "id = ?", arrayOf(id.toString()))
         _all.value = load()

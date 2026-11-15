@@ -8,7 +8,7 @@
 
 **Tech Stack:** Kotlin, Jetpack Compose (Material 3), GeckoView, OkHttp + kotlinx.serialization, Room, Jsoup, androidx.biometric, JUnit4 + MockWebServer + kotlinx-coroutines-test.
 
-**Spec:** https://claude.ai/artifact/Jjk5HtMriXYkjowb4ym9kk (「Claude 안드로이드 브라우저 설계」)
+**Spec:** 설계 문서 「Claude 안드로이드 브라우저 설계」 (비공개)
 
 ## Global Constraints
 

@@ -13,4 +13,10 @@ class UrlInputTest {
     )
     @Test fun searchesSingleWordWithoutDot() =
         assertEquals("https://www.google.com/search?q=weather", toUrl("weather"))
+
+    @Test fun displayHostStripsSchemeAndWww() = assertEquals("google.com", displayHost("https://www.google.com/search?q=a"))
+    @Test fun displayHostKeepsSubdomain() = assertEquals("m.naver.com", displayHost("https://m.naver.com/"))
+    @Test fun displayHostKeepsPort() = assertEquals("192.168.0.1:8080", displayHost("http://192.168.0.1:8080/x"))
+    @Test fun displayHostFallsBackToInput() = assertEquals("about:blank", displayHost("about:blank"))
+    @Test fun displayHostOfEmptyIsEmpty() = assertEquals("", displayHost(""))
 }

@@ -5,7 +5,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 const val DEFAULT_MODEL = "claude-sonnet-5-5"
-val KNOWN_MODELS = listOf("claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5")
+/** Model ID to the name shown in settings. */
+val KNOWN_MODELS = listOf(
+    "claude-sonnet-5-5" to "Sonnet 5.5",
+    "claude-opus-5-5" to "Opus 5.5",
+    "claude-haiku-5-5" to "Haiku 5.5",
+)
 
 /** The API key (stored encrypted) and the model to use. */
 class AppSettings(context: Context, private val secrets: SecretStore, prefsName: String = "settings") {

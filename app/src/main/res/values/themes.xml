@@ -1,0 +1,6 @@
+<resources>
+    <!-- Only the window behind Compose; colours come from ui/Theme.kt. -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FAFAF8</item>
+    </style>
+</resources>

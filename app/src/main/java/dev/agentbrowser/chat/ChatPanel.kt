@@ -1,22 +1,37 @@
 package dev.agentbrowser.chat
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.AddComment
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,7 +43,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import dev.agentbrowser.ui.PillField
 
 /** The lower half of the browser screen: the conversation with Claude and what it is doing to the page. */
 @Composable
@@ -40,67 +61,119 @@ fun ChatPanel(
 ) {
     val items by model.items.collectAsState()
     val running by model.running.collectAsState()
-    val pendingConfirm by model.pendingConfirm.collectAsState()
-    var draft by rememberSaveable { mutableStateOf("") }
+    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
     val listState = rememberLazyListState()
+    val colors = MaterialTheme.colorScheme
 
-    LaunchedEffect(items.size, pendingConfirm) {
+    LaunchedEffect(items.size) {
         if (items.isNotEmpty()) listState.animateScrollToItem(items.lastIndex)
     }
 
-    Column(modifier.fillMaxWidth()) {
-        HorizontalDivider()
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Claude", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { model.newChat() }) { Text("새 대화") }
-            TextButton(onClick = onClose) { Text("닫기") }
-        }
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            if (items.isEmpty()) {
-                item {
-                    Text(
-                        "이 페이지에서 할 일을 말해 보세요. 예: \"이 페이지 요약해줘\"",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            items(items) { item -> ChatRow(item, onOpenSettings) }
-        }
-        pendingConfirm?.let { description ->
-            Column(
-                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(12.dp),
+    Surface(
+        color = colors.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        border = BorderStroke(1.dp, colors.outlineVariant),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth().height(44.dp).padding(start = 16.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("진행할까요? $description", color = MaterialTheme.colorScheme.onErrorContainer)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { model.answerConfirm(true) }) { Text("진행") }
-                    OutlinedButton(onClick = { model.answerConfirm(false) }) { Text("취소") }
+                Text("Claude", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                IconButton(onClick = { model.newChat() }) {
+                    Icon(Icons.Outlined.AddComment, contentDescription = "새 대화", tint = colors.onSurfaceVariant)
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "패널 접기", tint = colors.onSurfaceVariant)
+                }
+            }
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) {
+                if (items.isEmpty()) {
+                    item {
+                        Text(
+                            "이 페이지에서 할 일을 적어 주세요. 예: 이 페이지 요약해 줘",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.onSurfaceVariant,
+                        )
+                    }
+                }
+                itemsIndexed(items) { index, item ->
+                    // Consecutive actions sit close together; a new turn gets more air.
+                    val previous = items.getOrNull(index - 1)
+                    val gap = when {
+                        previous == null -> 0.dp
+                        item is ChatItem.Action && previous is ChatItem.Action -> 4.dp
+                        else -> 12.dp
+                    }
+                    Spacer(Modifier.height(gap))
+                    ChatRow(item, onOpenSettings)
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                PillField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    placeholder = "이 페이지에서 할 일",
+                    minHeight = 44.dp,
+                    singleLine = false,
+                    maxLines = 4,
+                    modifier = Modifier.weight(1f),
+                    trailing = { Spacer(Modifier.width(12.dp)) },
+                )
+                Spacer(Modifier.width(8.dp))
+                if (running) {
+                    FilledIconButton(
+                        onClick = { model.stop() },
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = colors.error,
+                            contentColor = colors.onError,
+                        ),
+                        modifier = Modifier.size(44.dp),
+                    ) { Icon(Icons.Filled.Stop, contentDescription = "중지") }
+                } else {
+                    FilledIconButton(
+                        onClick = {
+                            model.send(draft.text)
+                            draft = TextFieldValue("")
+                        },
+                        enabled = draft.text.isNotBlank(),
+                        modifier = Modifier.size(44.dp),
+                    ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "보내기") }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                placeholder = { Text("Claude에게 시키기") },
-                maxLines = 3,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.padding(4.dp))
-            if (running) {
-                Button(onClick = { model.stop() }) { Text("정지") }
-            } else {
-                Button(
-                    onClick = {
-                        model.send(draft)
-                        draft = ""
-                    },
-                    enabled = draft.isNotBlank(),
-                ) { Text("보내기") }
+    }
+}
+
+/** Asks before a risky action. Shown by the browser screen so it stays visible with the panel closed. */
+@Composable
+fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Surface(color = colors.surfaceContainerHighest) {
+        Column {
+            HorizontalDivider(color = colors.outlineVariant)
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.error, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("이 작업을 진행할까요?", style = MaterialTheme.typography.titleSmall)
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(description, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { onAnswer(false) }) { Text("취소") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = { onAnswer(true) }) { Text("진행") }
+                }
             }
         }
     }
@@ -108,25 +181,37 @@ fun ChatPanel(
 
 @Composable
 private fun ChatRow(item: ChatItem, onOpenSettings: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     when (item) {
         is ChatItem.User -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Text(
                 item.text,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = colors.onPrimaryContainer,
                 modifier = Modifier
-                    .widthIn(max = 300.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .fillMaxWidth(0.82f)
+                    .background(colors.primaryContainer, RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
             )
         }
-        is ChatItem.Assistant -> Text(item.text)
-        is ChatItem.Action -> Text(
-            "· ${item.text}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        is ChatItem.Assistant -> Text(
+            buildAnnotatedString {
+                boldSegments(item.text).forEach { segment ->
+                    if (segment.bold) withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(segment.text) }
+                    else append(segment.text)
+                }
+            },
         )
-        is ChatItem.Notice -> Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(item.text, color = MaterialTheme.colorScheme.error)
+        is ChatItem.Action -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Check, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(item.text, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        }
+        is ChatItem.Notice -> Column {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = colors.error, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(item.text, color = colors.error, modifier = Modifier.weight(1f))
+            }
             if (item.openSettings) TextButton(onClick = onOpenSettings) { Text("설정 열기") }
         }
     }

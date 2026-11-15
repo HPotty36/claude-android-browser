@@ -25,6 +25,10 @@ class BrowserController(context: Context) {
     val canGoBack: StateFlow<Boolean> = _canGoBack
     val canGoForward: StateFlow<Boolean> = _canGoForward
 
+    private val _progress = MutableStateFlow(100)
+    /** Page load progress, 0..100; 100 when idle. */
+    val progress: StateFlow<Int> = _progress
+
     /** Set by the screen that shows the page; returns what is visible, or null when nothing is attached. */
     var capturePage: (suspend () -> Bitmap?)? = null
 
@@ -51,6 +55,15 @@ class BrowserController(context: Context) {
 
             override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
                 _canGoForward.value = canGoForward
+            }
+        }
+        session.progressDelegate = object : GeckoSession.ProgressDelegate {
+            override fun onProgressChange(session: GeckoSession, progress: Int) {
+                _progress.value = progress
+            }
+
+            override fun onPageStop(session: GeckoSession, success: Boolean) {
+                _progress.value = 100
             }
         }
         session.contentDelegate = object : GeckoSession.ContentDelegate {
@@ -92,4 +105,5 @@ class BrowserController(context: Context) {
     fun back() = session.goBack()
     fun forward() = session.goForward()
     fun reload() = session.reload()
+    fun stop() = session.stop()
 }
