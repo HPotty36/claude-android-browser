@@ -25,8 +25,8 @@ android {
         applicationId = "dev.agentbrowser"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.6.0"
+        versionCode = 12
+        versionName = "0.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -52,6 +52,8 @@ android {
         compose = true
         buildConfig = true
     }
+    // The default pattern leaves out folders that start with "_", and an extension keeps its strings in _locales.
+    androidResources { ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~" }
     // Compress the engine's native libraries: the APK is about half the size to download.
     packaging { jniLibs { useLegacyPackaging = true } }
     compileOptions {

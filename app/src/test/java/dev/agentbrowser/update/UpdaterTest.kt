@@ -3,6 +3,7 @@ package dev.agentbrowser.update
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
@@ -49,6 +50,8 @@ class UpdaterTest {
         lastCheck = { lastCheck },
         saveLastCheck = { lastCheck = it },
         releaseUrl = server.url("/latest").toString(),
+        // A dropped connection must fail here, not be retried into the next queued response.
+        http = OkHttpClient.Builder().retryOnConnectionFailure(false).build(),
     )
 
     private fun release() = parseRelease(releaseJson())!!
