@@ -1,4 +1,7 @@
+import java.net.URI
+import java.security.MessageDigest
 import java.util.Properties
+import java.util.zip.ZipInputStream
 
 plugins {
     id("com.android.application")
@@ -22,8 +25,8 @@ android {
         applicationId = "dev.agentbrowser"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10
-        versionName = "0.5.0"
+        versionCode = 11
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -55,6 +58,49 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+/**
+ * Downloads a pinned uBlock Origin release and unpacks it as the built-in extension assets/ublock.
+ * uBlock Origin is GPLv3 and ships unmodified; see THIRD_PARTY_NOTICES.md.
+ */
+abstract class FetchUblock : DefaultTask() {
+    @get:Input abstract val url: Property<String>
+    @get:Input abstract val sha256: Property<String>
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction fun run() {
+        val xpi = File(temporaryDir, "ublock.xpi")
+        URI(url.get()).toURL().openStream().use { input -> xpi.outputStream().use { input.copyTo(it) } }
+        val actual = MessageDigest.getInstance("SHA-256").digest(xpi.readBytes()).joinToString("") { "%02x".format(it) }
+        check(actual == sha256.get()) { "uBlock Origin download has SHA-256 $actual, expected ${sha256.get()}" }
+
+        val root = outputDir.get().asFile
+        root.deleteRecursively()
+        val target = File(root, "ublock").canonicalFile
+        ZipInputStream(xpi.inputStream()).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                // The signature only matters to the add-on store, not to a built-in extension.
+                if (entry.isDirectory || entry.name.startsWith("META-INF/")) continue
+                val file = File(target, entry.name).canonicalFile
+                check(file.startsWith(target)) { "unexpected path in the archive: ${entry.name}" }
+                file.parentFile.mkdirs()
+                file.outputStream().use { zip.copyTo(it) }
+            }
+        }
+    }
+}
+
+val ublockVersion = "1.76.4"
+val fetchUblock = tasks.register<FetchUblock>("fetchUblock") {
+    url = "https://github.com/gorhill/uBlock/releases/download/$ublockVersion/uBlock0_$ublockVersion.firefox.signed.xpi"
+    sha256 = "66d0e3f21ce3b32b1bc0a9399b93cb2c9aa598ef18805d92118c76f66e266c1e"
+    outputDir = layout.buildDirectory.dir("generated/ublock")
+}
+
+androidComponents {
+    onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(fetchUblock, FetchUblock::outputDir) }
 }
 
 dependencies {

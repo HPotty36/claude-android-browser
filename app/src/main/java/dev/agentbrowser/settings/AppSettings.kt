@@ -44,6 +44,22 @@ class AppSettings(context: Context, private val secrets: SecretStore, prefsName:
         _language.value = language
     }
 
+    private val _adBlock = MutableStateFlow(prefs.getBoolean("ad_block", true))
+    val adBlock: StateFlow<Boolean> = _adBlock
+
+    fun setAdBlock(on: Boolean) {
+        prefs.edit().putBoolean("ad_block", on).apply()
+        _adBlock.value = on
+    }
+
+    private val _encryptedDns = MutableStateFlow(prefs.getBoolean("encrypted_dns", true))
+    val encryptedDns: StateFlow<Boolean> = _encryptedDns
+
+    fun setEncryptedDns(on: Boolean) {
+        prefs.edit().putBoolean("encrypted_dns", on).apply()
+        _encryptedDns.value = on
+    }
+
     /** The strings for the chosen language, read where there is no composition to provide them. */
     fun strings(): Strings = stringsFor(_language.value, Locale.getDefault().language)
 

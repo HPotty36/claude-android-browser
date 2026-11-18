@@ -41,6 +41,8 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 | **One-handed** | The address, back, forward, bookmark, Claude, tabs and menu all sit in one bar at the bottom. |
 | **Tabs** | Keep several pages open; switch or close them from the list. Links that ask for a new window open a new tab. |
 | **Search** | DuckDuckGo by default; Google, Naver, Bing and Brave Search in settings. |
+| **Ad blocking** | uBlock Origin is built in and on by default; a switch in settings turns it off. |
+| **Encrypted DNS** | Site lookups go over HTTPS (Cloudflare) by default, which gets past DNS-based blocking. Sites that support ECH also hide their name while connecting. |
 | **Google sign-in** | Built on the Firefox engine (GeckoView), so the Google sign-in that WebView apps are refused works. |
 | **Import from Chrome** | Bookmarks (HTML) and passwords (CSV), with saved logins filled in on sign-in pages. |
 | **Kept on the device** | The API key and passwords are encrypted with an Android Keystore key and never leave the phone. |
@@ -123,11 +125,12 @@ Claude is sent a numbered text list of the buttons, links and inputs rather than
 
 ## Known limits
 
-- No history, download manager or ad blocking. Open tabs are gone when the app is closed.
+- No history or download manager. Open tabs are gone when the app is closed.
 - Claude works in the tab you are looking at. Switch tabs mid-task and it carries on in the new one.
 - JavaScript alert/confirm dialogs, `<select>` dropdowns and file pickers do not appear.
 - `intent://` links that open a login or payment app are not handled.
 - Claude cannot read or operate elements inside iframes.
+- Encrypted DNS does not get past blocking that reads the site name from the connection (SNI) unless the site supports ECH. The ad blocker has no per-site switch yet.
 - Password autofill and the import screens are covered by automated tests down to storage; they have not had much use on real sites.
 
 ## Build
@@ -156,7 +159,7 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 
 ## License
 
-[MIT](LICENSE). The browser engine, [GeckoView](https://mozilla.github.io/geckoview/), is under the Mozilla Public License 2.0.
+[MIT](LICENSE). The browser engine, [GeckoView](https://mozilla.github.io/geckoview/), is under the Mozilla Public License 2.0, and the bundled ad blocker, [uBlock Origin](https://github.com/gorhill/uBlock), is under the GPLv3. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
 
@@ -188,6 +191,8 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 | **한 손 조작** | 주소창과 뒤로, 앞으로, 북마크, Claude 버튼, 탭, 메뉴가 화면 아래의 바 하나에 모여 있습니다. |
 | **탭** | 여러 페이지를 열어 두고 목록에서 바꾸거나 닫습니다. 새 창으로 열리는 링크는 새 탭이 됩니다. |
 | **검색** | 기본 검색 엔진은 DuckDuckGo이고, 설정에서 Google, 네이버, Bing, Brave Search로 바꿀 수 있습니다. |
+| **광고 차단** | uBlock Origin이 내장돼 기본으로 켜져 있고, 설정에서 끌 수 있습니다. |
+| **암호화 DNS** | 주소 조회를 기본으로 HTTPS(Cloudflare)로 보내 DNS 차단을 지나갑니다. ECH를 지원하는 사이트는 접속할 때 이름도 가려집니다. |
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |
 | **Chrome에서 가져오기** | 북마크(HTML)와 비밀번호(CSV)를 가져오고, 로그인 화면에서 자동으로 채웁니다. |
 | **기기 안에 보관** | API 키와 비밀번호는 Android Keystore 키로 암호화해 기기에만 저장합니다. |
@@ -230,11 +235,12 @@ Chrome 데이터는 **설정 → Chrome에서 가져오기**에서 옮깁니다.
 
 ## 알려진 한계
 
-- 방문 기록, 다운로드 관리, 광고 차단이 없습니다. 열어 둔 탭은 앱을 종료하면 사라집니다.
+- 방문 기록과 다운로드 관리가 없습니다. 열어 둔 탭은 앱을 종료하면 사라집니다.
 - Claude는 지금 보고 있는 탭에서만 동작합니다. 작업 중에 탭을 바꾸면 바꾼 탭에서 이어 갑니다.
 - 자바스크립트 alert/confirm, `<select>` 드롭다운, 파일 업로드 선택 창이 뜨지 않습니다.
 - 카카오 로그인이나 결제 앱을 부르는 `intent://` 링크를 처리하지 않습니다.
 - iframe 안의 요소는 Claude가 읽거나 조작하지 못합니다.
+- 암호화 DNS는 접속 과정에서 사이트 이름(SNI)을 읽는 차단은 지나가지 못합니다. 사이트가 ECH를 지원할 때만 예외입니다. 광고 차단을 사이트별로 끄는 기능은 아직 없습니다.
 - 비밀번호 자동 입력과 가져오기 화면은 자동 테스트로 저장소까지만 검증했고, 실제 사이트에서의 동작은 충분히 써 보지 못했습니다.
 
 ## 직접 빌드
@@ -243,4 +249,4 @@ Chrome 데이터는 **설정 → Chrome에서 가져오기**에서 옮깁니다.
 
 ## 라이선스
 
-[MIT](LICENSE). 브라우저 엔진 [GeckoView](https://mozilla.github.io/geckoview/)는 Mozilla Public License 2.0을 따릅니다.
+[MIT](LICENSE). 브라우저 엔진 [GeckoView](https://mozilla.github.io/geckoview/)는 Mozilla Public License 2.0을, 함께 들어 있는 광고 차단기 [uBlock Origin](https://github.com/gorhill/uBlock)은 GPLv3를 따릅니다. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 참고하세요.

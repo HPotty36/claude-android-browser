@@ -91,6 +91,13 @@ interface Strings {
     val languageKorean: String
     fun apiKeySaved(lastFour: String): String
 
+    // Protection
+    val protection: String
+    val adBlock: String
+    val adBlockNote: String
+    val encryptedDns: String
+    val encryptedDnsNote: String
+
     // Update
     val update: String
     val checkForUpdates: String
@@ -210,6 +217,13 @@ object En : Strings {
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "Saved · ····$lastFour"
 
+    override val protection = "Protection"
+    override val adBlock = "Block ads"
+    override val adBlockNote = "uBlock Origin blocks ads and trackers"
+    override val encryptedDns = "Encrypted DNS"
+    override val encryptedDnsNote =
+        "Looks up sites over HTTPS through Cloudflare, which gets past DNS blocking. Sites that support ECH also keep their name hidden while connecting."
+
     override val update = "Update"
     override val checkForUpdates = "Check for updates"
     override val checkingForUpdates = "Checking…"
@@ -328,6 +342,13 @@ object Ko : Strings {
     override val languageEnglish = "English"
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "저장됨 · ····$lastFour"
+
+    override val protection = "보호"
+    override val adBlock = "광고 차단"
+    override val adBlockNote = "uBlock Origin으로 광고와 추적기를 막습니다"
+    override val encryptedDns = "암호화 DNS"
+    override val encryptedDnsNote =
+        "Cloudflare를 거쳐 HTTPS로 주소를 조회해 DNS 차단을 지나갑니다. ECH를 지원하는 사이트는 접속할 때 이름도 가려집니다."
 
     override val update = "업데이트"
     override val checkForUpdates = "업데이트 확인"

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,6 +71,8 @@ fun SettingsScreen(
             ModelPicker(settings)
             SectionLabel(s.searchEngine)
             SearchEnginePicker(settings)
+            SectionLabel(s.protection)
+            ProtectionSwitches(settings)
             SectionLabel(s.language)
             LanguagePicker(settings)
             extraSections(snackbar)
@@ -120,6 +124,26 @@ private fun ApiKeyField(settings: AppSettings) {
             ) { Text(s.save) }
         }
     }
+}
+
+@Composable
+private fun ProtectionSwitches(settings: AppSettings) {
+    val s = LocalStrings.current
+    val adBlock by settings.adBlock.collectAsState()
+    val encryptedDns by settings.encryptedDns.collectAsState()
+    SwitchRow(s.adBlock, s.adBlockNote, adBlock, settings::setAdBlock)
+    SwitchRow(s.encryptedDns, s.encryptedDnsNote, encryptedDns, settings::setEncryptedDns)
+}
+
+@Composable
+private fun SwitchRow(title: String, note: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(note) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

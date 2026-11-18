@@ -16,6 +16,7 @@ import dev.agentbrowser.update.Updater
 import dev.agentbrowser.update.installApk
 import java.io.File
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 class App : Application() {
     val scope = MainScope()
@@ -29,9 +30,15 @@ class App : Application() {
 
     /** One GeckoRuntime per process, so the controller lives with the application. */
     val browser: BrowserController by lazy {
-        BrowserController(this).also { controller ->
+        BrowserController(
+            this,
+            encryptedDns = settings.encryptedDns.value,
+            adBlock = settings.adBlock.value,
+        ).also { controller ->
             controller.runtime.autocompleteStorageDelegate = GeckoLoginStorage(logins, scope)
             controller.promptDelegate = loginPrompts
+            scope.launch { settings.adBlock.collect(controller::setAdBlock) }
+            scope.launch { settings.encryptedDns.collect(controller::setEncryptedDns) }
         }
     }
 
