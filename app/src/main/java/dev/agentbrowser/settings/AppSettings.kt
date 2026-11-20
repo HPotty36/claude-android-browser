@@ -1,7 +1,9 @@
 package dev.agentbrowser.settings
 
 import android.content.Context
+import dev.agentbrowser.browser.DesktopSite
 import dev.agentbrowser.browser.SearchEngine
+import dev.agentbrowser.browser.desktopSiteById
 import dev.agentbrowser.browser.searchEngineById
 import dev.agentbrowser.ui.Language
 import dev.agentbrowser.ui.Strings
@@ -42,6 +44,14 @@ class AppSettings(context: Context, private val secrets: SecretStore, prefsName:
     fun setLanguage(language: Language) {
         prefs.edit().putString("language", language.id).apply()
         _language.value = language
+    }
+
+    private val _desktopSite = MutableStateFlow(desktopSiteById(prefs.getString("desktop_site", null)))
+    val desktopSite: StateFlow<DesktopSite> = _desktopSite
+
+    fun setDesktopSite(choice: DesktopSite) {
+        prefs.edit().putString("desktop_site", choice.id).apply()
+        _desktopSite.value = choice
     }
 
     private val _adBlock = MutableStateFlow(prefs.getBoolean("ad_block", true))

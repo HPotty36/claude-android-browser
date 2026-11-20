@@ -91,6 +91,12 @@ interface Strings {
     val languageKorean: String
     fun apiKeySaved(lastFour: String): String
 
+    // Desktop site
+    val desktopSite: String
+    val desktopSiteAuto: String
+    val desktopSiteAlways: String
+    val desktopSiteNever: String
+
     // Protection
     val protection: String
     val adBlock: String
@@ -217,6 +223,11 @@ object En : Strings {
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "Saved · ····$lastFour"
 
+    override val desktopSite = "Desktop site"
+    override val desktopSiteAuto = "Large screens"
+    override val desktopSiteAlways = "Always"
+    override val desktopSiteNever = "Never"
+
     override val protection = "Protection"
     override val adBlock = "Block ads"
     override val adBlockNote = "uBlock Origin blocks ads and trackers"
@@ -342,6 +353,11 @@ object Ko : Strings {
     override val languageEnglish = "English"
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "저장됨 · ····$lastFour"
+
+    override val desktopSite = "데스크톱 사이트"
+    override val desktopSiteAuto = "큰 화면에서"
+    override val desktopSiteAlways = "항상"
+    override val desktopSiteNever = "안 함"
 
     override val protection = "보호"
     override val adBlock = "광고 차단"

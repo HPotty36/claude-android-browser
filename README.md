@@ -43,6 +43,7 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 | **Search** | DuckDuckGo by default; Google, Naver, Bing and Brave Search in settings. |
 | **Ad blocking** | uBlock Origin is built in and on by default; a switch in settings turns it off. |
 | **Encrypted DNS** | Site lookups go over HTTPS (Cloudflare) by default, which gets past DNS-based blocking. Sites that support ECH also hide their name while connecting. |
+| **Desktop site** | Tablets, unfolded foldables and external displays get the desktop version of pages; phones get the mobile one. Settings can force either. |
 | **Google sign-in** | Built on the Firefox engine (GeckoView), so the Google sign-in that WebView apps are refused works. |
 | **Import from Chrome** | Bookmarks (HTML) and passwords (CSV), with saved logins filled in on sign-in pages. |
 | **Kept on the device** | The API key and passwords are encrypted with an Android Keystore key and never leave the phone. |
@@ -193,6 +194,7 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 | **검색** | 기본 검색 엔진은 DuckDuckGo이고, 설정에서 Google, 네이버, Bing, Brave Search로 바꿀 수 있습니다. |
 | **광고 차단** | uBlock Origin이 내장돼 기본으로 켜져 있고, 설정에서 끌 수 있습니다. |
 | **암호화 DNS** | 주소 조회를 기본으로 HTTPS(Cloudflare)로 보내 DNS 차단을 지나갑니다. ECH를 지원하는 사이트는 접속할 때 이름도 가려집니다. |
+| **데스크톱 사이트** | 태블릿, 펼친 폴더블, 외부 디스플레이에서는 데스크톱 버전으로, 폰에서는 모바일 버전으로 엽니다. 설정에서 한쪽으로 고정할 수 있습니다. |
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |
 | **Chrome에서 가져오기** | 북마크(HTML)와 비밀번호(CSV)를 가져오고, 로그인 화면에서 자동으로 채웁니다. |
 | **기기 안에 보관** | API 키와 비밀번호는 Android Keystore 키로 암호화해 기기에만 저장합니다. |

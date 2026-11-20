@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import dev.agentbrowser.browser.DesktopSite
 import dev.agentbrowser.browser.SEARCH_ENGINES
 import dev.agentbrowser.browser.displayHost
 import dev.agentbrowser.ui.Language
@@ -71,6 +72,8 @@ fun SettingsScreen(
             ModelPicker(settings)
             SectionLabel(s.searchEngine)
             SearchEnginePicker(settings)
+            SectionLabel(s.desktopSite)
+            DesktopSitePicker(settings)
             SectionLabel(s.protection)
             ProtectionSwitches(settings)
             SectionLabel(s.language)
@@ -122,6 +125,27 @@ private fun ApiKeyField(settings: AppSettings) {
                 },
                 enabled = draft.isNotBlank(),
             ) { Text(s.save) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DesktopSitePicker(settings: AppSettings) {
+    val s = LocalStrings.current
+    val current by settings.desktopSite.collectAsState()
+    val options = listOf(
+        DesktopSite.AUTO to s.desktopSiteAuto,
+        DesktopSite.ALWAYS to s.desktopSiteAlways,
+        DesktopSite.NEVER to s.desktopSiteNever,
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        options.forEachIndexed { index, (choice, label) ->
+            SegmentedButton(
+                selected = current == choice,
+                onClick = { settings.setDesktopSite(choice) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+            ) { Text(label) }
         }
     }
 }

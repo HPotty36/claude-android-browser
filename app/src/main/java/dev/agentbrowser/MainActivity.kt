@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -25,6 +27,7 @@ import dev.agentbrowser.browser.HOME_URL
 import dev.agentbrowser.browser.Shortcut
 import dev.agentbrowser.passwords.PasswordsScreen
 import dev.agentbrowser.settings.ImportSection
+import dev.agentbrowser.browser.wantsDesktopSite
 import dev.agentbrowser.settings.SettingsScreen
 import dev.agentbrowser.ui.AppTheme
 import dev.agentbrowser.ui.LocalStrings
@@ -44,6 +47,11 @@ class MainActivity : ComponentActivity() {
             app.scope.launch { app.updater.checkIfDue(System.currentTimeMillis()) }
         }
         setContent {
+            // The shorter side of the screen decides, so a tablet, an unfolded foldable or an external display
+            // gets desktop pages and a phone held sideways does not.
+            val desktopChoice by app.settings.desktopSite.collectAsState()
+            val desktopSite = wantsDesktopSite(desktopChoice, LocalConfiguration.current.smallestScreenWidthDp)
+            LaunchedEffect(desktopSite) { app.browser.setDesktopSite(desktopSite) }
             var screen by rememberSaveable { mutableStateOf("browser") }
             val scope = rememberCoroutineScope()
             val language by app.settings.language.collectAsState()

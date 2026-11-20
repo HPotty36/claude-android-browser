@@ -18,6 +18,7 @@ import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
 
@@ -153,6 +154,27 @@ class BrowserController(
     var encryptedDns: Boolean = encryptedDns
         private set
 
+    /** Whether pages are asked for their desktop version. */
+    var desktopSite: Boolean = false
+        private set
+
+    /** Applies to every tab, present and future. Open pages reload so they come back in the other version. */
+    fun setDesktopSite(on: Boolean) {
+        if (desktopSite == on) return
+        desktopSite = on
+        _tabs.value.forEach { tab ->
+            applyDesktopSite(tab.session)
+            if (tab.url.value.startsWith("http")) tab.session.reload()
+        }
+    }
+
+    private fun applyDesktopSite(session: GeckoSession) {
+        session.settings.userAgentMode =
+            if (desktopSite) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE
+        session.settings.viewportMode =
+            if (desktopSite) GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE
+    }
+
     fun setEncryptedDns(on: Boolean) {
         encryptedDns = on
         runtime.settings.setTrustedRecursiveResolverMode(trrMode(on))
@@ -219,6 +241,7 @@ class BrowserController(
             }
         }
         session.promptDelegate = promptDelegate
+        applyDesktopSite(session)
         attachDriver(tab)
         if (url != null) {
             session.open(runtime)
