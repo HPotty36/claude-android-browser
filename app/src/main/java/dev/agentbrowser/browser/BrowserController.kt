@@ -2,6 +2,7 @@ package dev.agentbrowser.browser
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.SystemClock
 import android.util.Log
 import dev.agentbrowser.page.CurrentTabDriver
 import dev.agentbrowser.page.GeckoPageDriver
@@ -54,6 +55,22 @@ class Tab internal constructor(val id: Long, val session: GeckoSession, capture:
     internal val driver = GeckoPageDriver(session, capture)
     /** A load asked for before the agent extension was ready. */
     internal var pendingUrl: String? = null
+
+    private var leftMobileHost: String? = null
+    private var leftMobileHostAt = 0L
+
+    /**
+     * Whether a mobile address may be swapped for its desktop one now. A site that sends the desktop address
+     * straight back to the mobile one is left there, instead of being bounced between the two.
+     */
+    internal fun mayLeaveMobileHost(url: String): Boolean {
+        val host = url.substringAfter("://").substringBefore('/').lowercase()
+        val now = SystemClock.elapsedRealtime()
+        if (host == leftMobileHost && now - leftMobileHostAt < 5_000) return false
+        leftMobileHost = host
+        leftMobileHostAt = now
+        return true
+    }
 }
 
 /** Owns the engine and the open tabs. Everything that acts on "the page" acts on the current tab. */
@@ -174,7 +191,10 @@ class BrowserController(
         desktopSite = on
         _tabs.value.forEach { tab ->
             applyDesktopSite(tab.session)
-            if (tab.url.value.startsWith("http")) tab.session.reload()
+            val url = tab.url.value
+            // A page on a phone-only host name has to move to the other host; reloading would bring it back as it is.
+            val desktop = if (on) desktopUrl(url) else null
+            if (desktop != null) tab.session.loadUri(desktop) else if (url.startsWith("http")) tab.session.reload()
         }
     }
 
@@ -234,7 +254,12 @@ class BrowserController(
                 session: GeckoSession,
                 request: GeckoSession.NavigationDelegate.LoadRequest,
             ): GeckoResult<AllowOrDeny>? {
-                if (isWebAddress(request.uri)) return null
+                if (isWebAddress(request.uri)) {
+                    val desktop = if (desktopSite && !request.isRedirect) desktopUrl(request.uri) else null
+                    if (desktop == null || !tab.mayLeaveMobileHost(request.uri)) return null
+                    session.loadUri(desktop)
+                    return GeckoResult.deny()
+                }
                 _externalLink.value = request.uri
                 return GeckoResult.deny()
             }

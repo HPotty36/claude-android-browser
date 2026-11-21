@@ -23,12 +23,16 @@ class DesktopSiteDeviceTest {
     private val server = MockWebServer()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val userAgents = ConcurrentHashMap<String, String>()
+    /** Every host name each path was asked for under, in order. */
+    private val hosts = ConcurrentHashMap<String, MutableList<String>>()
     private lateinit var controller: BrowserController
 
     @Before fun start() {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 userAgents[request.path.orEmpty()] = request.getHeader("User-Agent").orEmpty()
+                hosts.getOrPut(request.path.orEmpty()) { java.util.concurrent.CopyOnWriteArrayList() }
+                    .add(request.getHeader("Host").orEmpty().substringBefore(':'))
                 return MockResponse()
                     .setHeader("content-type", "text/html; charset=utf-8")
                     .setBody("<!doctype html><title>t</title><body><p>page</p></body>")
@@ -74,5 +78,38 @@ class DesktopSiteDeviceTest {
         val agent = runBlocking { withTimeout(60_000) { while (userAgents[path] == null) delay(200); userAgents.getValue(path) } }
         assertFalse(agent.contains("Mobile"))
         instrumentation.runOnMainSync { controller.close(controller.current.value.id) }
+    }
+
+    private fun awaitHost(path: String, host: String) = runBlocking {
+        withTimeout(60_000) { while (hosts[path]?.contains(host) != true) delay(200) }
+    }
+
+    @Test fun aMobileAddressOpensAsItsDesktopOneWhileTheModeIsOn() {
+        instrumentation.runOnMainSync { controller.setDesktopSite(true) }
+        val path = "/opened?${System.nanoTime()}"
+        val url = "http://m.test.localhost:${server.port}$path"
+        instrumentation.runOnMainSync { controller.load(url) }
+        awaitHost(path, "test.localhost")
+        assertFalse(hosts.getValue(path).contains("m.test.localhost"))
+    }
+
+    @Test fun aMobilePageAlreadyOpenMovesToItsDesktopAddressWhenTheModeTurnsOn() {
+        instrumentation.runOnMainSync { controller.setDesktopSite(false) }
+        val path = "/already-open?${System.nanoTime()}"
+        val url = "http://m.test.localhost:${server.port}$path"
+        instrumentation.runOnMainSync { controller.load(url) }
+        awaitHost(path, "m.test.localhost")
+        runBlocking { withTimeout(60_000) { while (!controller.url.value.contains("m.test.localhost")) delay(200) } }
+        instrumentation.runOnMainSync { controller.setDesktopSite(true) }
+        awaitHost(path, "test.localhost")
+    }
+
+    @Test fun mobileAddressesAreLeftAloneWhileTheModeIsOff() {
+        instrumentation.runOnMainSync { controller.setDesktopSite(false) }
+        val path = "/stays-mobile?${System.nanoTime()}"
+        val url = "http://m.test.localhost:${server.port}$path"
+        instrumentation.runOnMainSync { controller.load(url) }
+        awaitHost(path, "m.test.localhost")
+        assertFalse(hosts.getValue(path).contains("test.localhost"))
     }
 }
