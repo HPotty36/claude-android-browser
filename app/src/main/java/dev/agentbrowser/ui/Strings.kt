@@ -91,6 +91,11 @@ interface Strings {
     val languageKorean: String
     fun apiKeySaved(lastFour: String): String
 
+    // Links meant for other apps
+    val openInApp: String
+    val open: String
+    val noAppForLink: String
+
     // Desktop site
     val desktopSite: String
     val desktopSiteAuto: String
@@ -223,6 +228,10 @@ object En : Strings {
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "Saved · ····$lastFour"
 
+    override val openInApp = "Open in another app?"
+    override val open = "Open"
+    override val noAppForLink = "No app on this phone opens that link"
+
     override val desktopSite = "Desktop site"
     override val desktopSiteAuto = "Large screens"
     override val desktopSiteAlways = "Always"
@@ -353,6 +362,10 @@ object Ko : Strings {
     override val languageEnglish = "English"
     override val languageKorean = "한국어"
     override fun apiKeySaved(lastFour: String) = "저장됨 · ····$lastFour"
+
+    override val openInApp = "다른 앱에서 열까요?"
+    override val open = "열기"
+    override val noAppForLink = "이 링크를 여는 앱이 없습니다"
 
     override val desktopSite = "데스크톱 사이트"
     override val desktopSiteAuto = "큰 화면에서"

@@ -27,6 +27,8 @@ import dev.agentbrowser.browser.HOME_URL
 import dev.agentbrowser.browser.Shortcut
 import dev.agentbrowser.passwords.PasswordsScreen
 import dev.agentbrowser.settings.ImportSection
+import android.view.KeyEvent
+import dev.agentbrowser.browser.shortcutFor
 import dev.agentbrowser.browser.wantsDesktopSite
 import dev.agentbrowser.settings.SettingsScreen
 import dev.agentbrowser.ui.AppTheme
@@ -100,6 +102,7 @@ class MainActivity : ComponentActivity() {
                                     searchUrl = searchEngine.queryUrl,
                                     isBookmarked = saved,
                                     updateAvailable = updateState.hasUpdate,
+                                    shortcutEvents = app.shortcuts,
                                     onToggleBookmark = {
                                         scope.launch {
                                             if (saved) app.bookmarks.deleteByUrl(url) else app.bookmarks.add(title, url)
@@ -123,6 +126,19 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Opens an http(s) link another app handed over. */
+    // Shortcuts are taken here, ahead of the page, so they work while the page has the keyboard.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val shortcuts = (application as App).shortcuts
+        if (event.action == KeyEvent.ACTION_DOWN && shortcuts.subscriptionCount.value > 0) {
+            val shortcut = shortcutFor(event.keyCode, event.isCtrlPressed, event.isShiftPressed, event.isAltPressed)
+            if (shortcut != null) {
+                if (event.repeatCount == 0) shortcuts.tryEmit(shortcut)
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     private fun openLink(intent: Intent?) {
         val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
         if (link.startsWith("http://", ignoreCase = true) || link.startsWith("https://", ignoreCase = true)) {

@@ -10,3 +10,10 @@ fun currentAfterClose(ids: List<Long>, current: Long, closing: Long): Long? {
     val remaining = ids - closing
     return remaining.getOrNull((index - 1).coerceAtLeast(0))
 }
+
+/** The tab [step] places along from the current one, wrapping round at either end. */
+fun neighbourTab(ids: List<Long>, current: Long, step: Int): Long {
+    val index = ids.indexOf(current)
+    if (index < 0 || ids.isEmpty()) return current
+    return ids[Math.floorMod(index + step, ids.size)]
+}

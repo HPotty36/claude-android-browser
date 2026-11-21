@@ -59,6 +59,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.widget.Toast
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.Flow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -96,12 +105,16 @@ import dev.agentbrowser.chat.ConfirmBar
 import dev.agentbrowser.chat.PANEL_DEFAULT
 import dev.agentbrowser.chat.PanelRest
 import dev.agentbrowser.chat.dragPanel
+import dev.agentbrowser.chat.panelBeside
+import dev.agentbrowser.chat.sidePanelWidth
 import dev.agentbrowser.chat.restPanel
 import dev.agentbrowser.page.await
 import dev.agentbrowser.passwords.LoginPromptDelegate
 import dev.agentbrowser.passwords.LoginPromptDialog
 import dev.agentbrowser.ui.PillField
 import org.mozilla.geckoview.GeckoView
+
+private const val BAR_MAX_DP = 720
 
 @Composable
 fun BrowserScreen(
@@ -112,6 +125,7 @@ fun BrowserScreen(
     searchUrl: String,
     isBookmarked: Boolean,
     updateAvailable: Boolean,
+    shortcutEvents: Flow<KeyShortcut>,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
     onSettings: () -> Unit,
@@ -139,54 +153,71 @@ fun BrowserScreen(
     BackHandler(enabled = chatOpen) { chatOpen = false }
     BackHandler(enabled = fullChat) { chatExpanded = false }
 
-    Column(modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { areaPx = it.height }) {
-            // While the panel is open the page keeps a sliver at least, so its view never loses its session.
-            val pageWeight = if (chatOpen) (1f - chatFraction).coerceAtLeast(0.05f) else 1f
-            Box(if (fullChat) Modifier.fillMaxWidth().height(0.dp) else Modifier.weight(pageWeight).fillMaxWidth()) {
-                AndroidView(
-                    factory = { context ->
-                        GeckoView(context).apply {
-                            setSession(tab.session)
-                            controller.capturePage = { capturePixels().await() }
-                        }
-                    },
-                    // Switching tabs hands the view the other tab's session.
-                    update = { view ->
-                        if (view.session !== tab.session) {
-                            view.releaseSession()
-                            view.setSession(tab.session)
-                        }
-                    },
-                    onRelease = { view ->
-                        controller.capturePage = null
-                        view.releaseSession()
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                if (onStartPage) StartPage(shortcuts, onOpen = controller::load)
-                // The page wears the accent while Claude has the controls.
-                if (agentRunning) Box(Modifier.fillMaxSize().border(2.dp, colors.primary))
+    val context = LocalContext.current
+    val externalLink by controller.externalLink.collectAsState()
+    externalLink?.let { link ->
+        AlertDialog(
+            onDismissRequest = controller::dismissExternalLink,
+            title = { Text(s.openInApp) },
+            text = { Text(externalLinkLabel(link)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    controller.dismissExternalLink()
+                    if (!openExternal(context, link)) {
+                        // An intent link may name a web page for when its app is missing.
+                        externalFallback(link)?.let(controller::load)
+                            ?: Toast.makeText(context, s.noAppForLink, Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text(s.open) }
+            },
+            dismissButton = { TextButton(onClick = controller::dismissExternalLink) { Text(s.cancel) } },
+        )
+    }
+
+    // Counts requests to put the cursor in the address field.
+    var addressFocus by remember { mutableStateOf(0) }
+    val toggleBookmark by rememberUpdatedState(onToggleBookmark)
+    LaunchedEffect(shortcutEvents) {
+        shortcutEvents.collect { shortcut ->
+            when (shortcut) {
+                KeyShortcut.FocusAddress -> {
+                    chatExpanded = false
+                    addressFocus++
+                }
+                KeyShortcut.NewTab -> controller.newTab()
+                KeyShortcut.CloseTab -> controller.close(controller.current.value.id)
+                KeyShortcut.NextTab -> controller.selectNeighbour(1)
+                KeyShortcut.PreviousTab -> controller.selectNeighbour(-1)
+                KeyShortcut.Reload -> controller.reload()
+                KeyShortcut.Back -> controller.back()
+                KeyShortcut.Forward -> controller.forward()
+                KeyShortcut.ToggleBookmark -> if (controller.url.value.startsWith("http")) toggleBookmark()
+                KeyShortcut.ToggleClaude -> chatOpen = !chatOpen
             }
-            // Always on screen while Claude waits for an answer, whether or not the chat panel is open.
-            pendingConfirm?.let { description ->
-                ConfirmBar(description, onAnswer = chat::answerConfirm)
-            }
-            if (chatOpen) {
-                ChatPanel(
-                    model = chat,
-                    expanded = chatExpanded,
-                    onToggleExpanded = {
-                        chatExpanded = !chatExpanded
-                        if (!chatExpanded) chatFraction = PANEL_DEFAULT
-                    },
-                    onDrag = { dragPx ->
+        }
+    }
+
+    val openSettings by rememberUpdatedState(onSettings)
+    // One panel that moves between the bottom and the side, so what is typed in it survives the move.
+    val panel = remember {
+        movableContentOf { panelModifier: Modifier, resizable: Boolean, suggestions: List<String> ->
+            ChatPanel(
+                model = chat,
+                expanded = chatExpanded,
+                onToggleExpanded = {
+                    chatExpanded = !chatExpanded
+                    if (!chatExpanded) chatFraction = PANEL_DEFAULT
+                },
+                onDrag = { dragPx ->
+                    if (resizable) {
                         // Pulling down from full screen starts from just under the top.
                         val from = if (chatExpanded) 1f else chatFraction
                         chatExpanded = false
                         chatFraction = dragPanel(from, dragPx, areaPx.toFloat())
-                    },
-                    onDragEnd = {
+                    }
+                },
+                onDragEnd = {
+                    if (resizable) {
                         when (val rest = restPanel(chatFraction)) {
                             PanelRest.Full -> chatExpanded = true
                             PanelRest.Closed -> {
@@ -195,30 +226,82 @@ fun BrowserScreen(
                             }
                             is PanelRest.Partial -> chatFraction = rest.fraction
                         }
-                    },
-                    suggestions = if (onStartPage) emptyList() else listOf(s.suggestSummary, s.suggestPrice),
-                    onClose = { chatOpen = false },
-                    onOpenSettings = onSettings,
-                    modifier = Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)),
-                )
-            } else if (agentRunning) {
-                RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop)
-            }
-        }
-        if (!fullChat) {
-            CommandBar(
-                controller = controller,
-                searchUrl = searchUrl,
-                onStartPage = onStartPage,
-                chatOpen = chatOpen,
-                agentRunning = agentRunning,
-                isBookmarked = isBookmarked,
-                updateAvailable = updateAvailable,
-                onClaude = { chatOpen = !chatOpen },
-                onToggleBookmark = onToggleBookmark,
-                onBookmarks = onBookmarks,
-                onSettings = onSettings,
+                    }
+                },
+                suggestions = suggestions,
+                onClose = { chatOpen = false },
+                onOpenSettings = { openSettings() },
+                modifier = panelModifier,
             )
+        }
+    }
+    val suggestions = if (onStartPage) emptyList() else listOf(s.suggestSummary, s.suggestPrice)
+
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        // A wide window (a monitor, a tablet, a phone on its side) keeps the page whole and puts Claude beside it.
+        val side = panelBeside(maxWidth.value, maxHeight.value) && chatOpen && !chatExpanded
+        val sideWidth = sidePanelWidth(maxWidth.value).dp
+        Row(Modifier.fillMaxSize()) {
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { areaPx = it.height }) {
+                    // While the panel is open the page keeps a sliver at least, so its view never loses its session.
+                    val pageWeight = if (chatOpen && !side) (1f - chatFraction).coerceAtLeast(0.05f) else 1f
+                    Box(if (fullChat) Modifier.fillMaxWidth().height(0.dp) else Modifier.weight(pageWeight).fillMaxWidth()) {
+                        AndroidView(
+                            factory = { context ->
+                                GeckoView(context).apply {
+                                    setSession(tab.session)
+                                    controller.capturePage = { capturePixels().await() }
+                                }
+                            },
+                            // Switching tabs hands the view the other tab's session.
+                            update = { view ->
+                                if (view.session !== tab.session) {
+                                    view.releaseSession()
+                                    view.setSession(tab.session)
+                                }
+                            },
+                            onRelease = { view ->
+                                controller.capturePage = null
+                                view.releaseSession()
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        if (onStartPage) StartPage(shortcuts, onOpen = controller::load)
+                        // The page wears the accent while Claude has the controls.
+                        if (agentRunning) Box(Modifier.fillMaxSize().border(2.dp, colors.primary))
+                    }
+                    // Always on screen while Claude waits for an answer, whether or not the chat panel is open.
+                    pendingConfirm?.let { description ->
+                        ConfirmBar(description, onAnswer = chat::answerConfirm)
+                    }
+                    if (chatOpen && !side) {
+                        panel(Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)), true, suggestions)
+                    } else if (agentRunning && !chatOpen) {
+                        RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop)
+                    }
+                }
+                if (!fullChat) {
+                    CommandBar(
+                        controller = controller,
+                        searchUrl = searchUrl,
+                        onStartPage = onStartPage,
+                        chatOpen = chatOpen,
+                        agentRunning = agentRunning,
+                        isBookmarked = isBookmarked,
+                        updateAvailable = updateAvailable,
+                        addressFocus = addressFocus,
+                        onClaude = { chatOpen = !chatOpen },
+                        onToggleBookmark = onToggleBookmark,
+                        onBookmarks = onBookmarks,
+                        onSettings = onSettings,
+                    )
+                }
+            }
+            if (side) {
+                VerticalDivider(color = colors.outlineVariant)
+                panel(Modifier.width(sideWidth).fillMaxHeight(), false, suggestions)
+            }
         }
     }
 }
@@ -233,6 +316,7 @@ private fun CommandBar(
     agentRunning: Boolean,
     isBookmarked: Boolean,
     updateAvailable: Boolean,
+    addressFocus: Int,
     onClaude: () -> Unit,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
@@ -253,13 +337,21 @@ private fun CommandBar(
     val s = LocalStrings.current
 
     BackHandler(enabled = editing != null) { editing = null }
+    LaunchedEffect(addressFocus) {
+        if (addressFocus > 0) {
+            val text = if (onStartPage) "" else url
+            editing = TextFieldValue(text, TextRange(0, text.length))
+        }
+    }
     if (tabsOpen) TabsSheet(controller, onDismiss = { tabsOpen = false })
 
+    // On a wide window the bar stays a bar: centred, not stretched from edge to edge.
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
     Surface(
         color = colors.surfaceContainerHigh,
         shape = RoundedCornerShape(28.dp),
         border = BorderStroke(1.dp, colors.outlineVariant),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+        modifier = Modifier.widthIn(max = BAR_MAX_DP.dp).fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         Column {
             val draft = editing
@@ -404,6 +496,7 @@ private fun CommandBar(
                 }
             }
         }
+    }
     }
 }
 

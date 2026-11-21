@@ -15,7 +15,9 @@ import dev.agentbrowser.settings.SecretStore
 import dev.agentbrowser.update.Updater
 import dev.agentbrowser.update.installApk
 import java.io.File
+import dev.agentbrowser.browser.KeyShortcut
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
 class App : Application() {
@@ -41,6 +43,9 @@ class App : Application() {
             scope.launch { settings.encryptedDns.collect(controller::setEncryptedDns) }
         }
     }
+
+    /** Hardware keyboard shortcuts, from the activity that sees the keys to the screen that acts on them. */
+    val shortcuts = MutableSharedFlow<KeyShortcut>(extraBufferCapacity = 8)
 
     val updater: Updater by lazy {
         Updater(

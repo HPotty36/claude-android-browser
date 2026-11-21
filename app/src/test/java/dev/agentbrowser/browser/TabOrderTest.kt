@@ -10,4 +10,9 @@ class TabOrderTest {
     @Test fun closingTheFirstTabMovesToTheNext() = assertEquals(2L, currentAfterClose(listOf(1, 2, 3), current = 1, closing = 1))
     @Test fun closingTheOnlyTabLeavesNone() = assertNull(currentAfterClose(listOf(7), current = 7, closing = 7))
     @Test fun closingAnUnknownTabChangesNothing() = assertEquals(1L, currentAfterClose(listOf(1, 2), current = 1, closing = 9))
+
+    @Test fun theNextTabIsTheOneAfter() = assertEquals(2L, neighbourTab(listOf(1, 2, 3), current = 1, step = 1))
+    @Test fun theTabBeforeTheFirstIsTheLast() = assertEquals(3L, neighbourTab(listOf(1, 2, 3), current = 1, step = -1))
+    @Test fun theTabAfterTheLastIsTheFirst() = assertEquals(1L, neighbourTab(listOf(1, 2, 3), current = 3, step = 1))
+    @Test fun aLoneTabIsItsOwnNeighbour() = assertEquals(7L, neighbourTab(listOf(7), current = 7, step = 1))
 }

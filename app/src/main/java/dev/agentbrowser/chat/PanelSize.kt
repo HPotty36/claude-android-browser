@@ -27,3 +27,12 @@ fun restPanel(fraction: Float): PanelRest = when {
     fraction < CLOSE_BELOW -> PanelRest.Closed
     else -> PanelRest.Partial(fraction.coerceAtLeast(PANEL_MIN))
 }
+
+/**
+ * Whether the panel sits beside the page instead of under it: a window that is wider than tall and wide enough
+ * for both. A monitor, a tablet or a phone on its side has height to spare least of all.
+ */
+fun panelBeside(widthDp: Float, heightDp: Float): Boolean = widthDp >= 720f && widthDp > heightDp
+
+/** The width of the panel when it sits beside the page: never more than 45% of the window, 400dp at most. */
+fun sidePanelWidth(widthDp: Float): Float = minOf(400f, widthDp * 0.45f)

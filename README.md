@@ -44,6 +44,8 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 | **Ad blocking** | uBlock Origin is built in and on by default; a switch in settings turns it off. |
 | **Encrypted DNS** | Site lookups go over HTTPS (Cloudflare) by default, which gets past DNS-based blocking. Sites that support ECH also hide their name while connecting. |
 | **Desktop site** | Tablets, unfolded foldables and external displays get the desktop version of pages; phones get the mobile one. Settings can force either. |
+| **Keyboard and wide windows** | With a keyboard attached: Ctrl+L address, Ctrl+T / Ctrl+W new and close tab, Ctrl+Tab switch tab, Ctrl+R or F5 reload, Alt+← / Alt+→ back and forward, Ctrl+D bookmark, Ctrl+J Claude. On a window wider than it is tall (a monitor, a tablet, a phone on its side) Claude sits beside the page. |
+| **Hands off to apps** | A link meant for an app, such as a sign-in returning to its app or a payment app, asks before it opens there. |
 | **Google sign-in** | Built on the Firefox engine (GeckoView), so the Google sign-in that WebView apps are refused works. |
 | **Import from Chrome** | Bookmarks (HTML) and passwords (CSV), with saved logins filled in on sign-in pages. |
 | **Kept on the device** | The API key and passwords are encrypted with an Android Keystore key and never leave the phone. |
@@ -129,7 +131,7 @@ Claude is sent a numbered text list of the buttons, links and inputs rather than
 - No history or download manager. Open tabs are gone when the app is closed.
 - Claude works in the tab you are looking at. Switch tabs mid-task and it carries on in the new one.
 - JavaScript alert/confirm dialogs, `<select>` dropdowns and file pickers do not appear.
-- `intent://` links that open a login or payment app are not handled.
+- Sign-ins that return to their app through an ordinary `https://` link (an app link) stay in the browser. Right-click menus and dragging the side panel wider are not there yet.
 - Claude cannot read or operate elements inside iframes.
 - Encrypted DNS does not get past blocking that reads the site name from the connection (SNI) unless the site supports ECH. The ad blocker has no per-site switch yet.
 - Password autofill and the import screens are covered by automated tests down to storage; they have not had much use on real sites.
@@ -195,6 +197,8 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 | **광고 차단** | uBlock Origin이 내장돼 기본으로 켜져 있고, 설정에서 끌 수 있습니다. |
 | **암호화 DNS** | 주소 조회를 기본으로 HTTPS(Cloudflare)로 보내 DNS 차단을 지나갑니다. ECH를 지원하는 사이트는 접속할 때 이름도 가려집니다. |
 | **데스크톱 사이트** | 태블릿, 펼친 폴더블, 외부 디스플레이에서는 데스크톱 버전으로, 폰에서는 모바일 버전으로 엽니다. 설정에서 한쪽으로 고정할 수 있습니다. |
+| **키보드와 넓은 창** | 키보드를 연결하면 Ctrl+L 주소창, Ctrl+T / Ctrl+W 새 탭과 탭 닫기, Ctrl+Tab 탭 전환, Ctrl+R 또는 F5 새로고침, Alt+← / Alt+→ 뒤로와 앞으로, Ctrl+D 북마크, Ctrl+J Claude를 씁니다. 가로가 세로보다 긴 창(모니터, 태블릿, 가로로 돌린 폰)에서는 Claude 패널이 페이지 옆에 놓입니다. |
+| **앱으로 넘기기** | 로그인 후 앱으로 돌아가는 링크나 결제 앱 링크처럼 다른 앱을 여는 링크는 확인을 받고 그 앱에서 엽니다. |
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |
 | **Chrome에서 가져오기** | 북마크(HTML)와 비밀번호(CSV)를 가져오고, 로그인 화면에서 자동으로 채웁니다. |
 | **기기 안에 보관** | API 키와 비밀번호는 Android Keystore 키로 암호화해 기기에만 저장합니다. |
@@ -240,7 +244,7 @@ Chrome 데이터는 **설정 → Chrome에서 가져오기**에서 옮깁니다.
 - 방문 기록과 다운로드 관리가 없습니다. 열어 둔 탭은 앱을 종료하면 사라집니다.
 - Claude는 지금 보고 있는 탭에서만 동작합니다. 작업 중에 탭을 바꾸면 바꾼 탭에서 이어 갑니다.
 - 자바스크립트 alert/confirm, `<select>` 드롭다운, 파일 업로드 선택 창이 뜨지 않습니다.
-- 카카오 로그인이나 결제 앱을 부르는 `intent://` 링크를 처리하지 않습니다.
+- 일반 `https://` 주소(앱 링크)로 앱에 돌아가는 로그인은 브라우저에 머뭅니다. 마우스 오른쪽 클릭 메뉴와 옆 패널 너비 조절은 아직 없습니다.
 - iframe 안의 요소는 Claude가 읽거나 조작하지 못합니다.
 - 암호화 DNS는 접속 과정에서 사이트 이름(SNI)을 읽는 차단은 지나가지 못합니다. 사이트가 ECH를 지원할 때만 예외입니다. 광고 차단을 사이트별로 끄는 기능은 아직 없습니다.
 - 비밀번호 자동 입력과 가져오기 화면은 자동 테스트로 저장소까지만 검증했고, 실제 사이트에서의 동작은 충분히 써 보지 못했습니다.

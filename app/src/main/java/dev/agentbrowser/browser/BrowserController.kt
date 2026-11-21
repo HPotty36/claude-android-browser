@@ -21,6 +21,8 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.WebExtension
 import org.mozilla.geckoview.WebExtensionController
+import org.mozilla.geckoview.WebRequestError
+import org.mozilla.geckoview.AllowOrDeny
 
 /** The blank page the start screen is drawn over. */
 const val HOME_URL = "about:blank"
@@ -84,6 +86,14 @@ class BrowserController(
     private var nextId = 1L
     private var extension: WebExtension? = null
     private var extensionReady = false
+
+    private val _externalLink = MutableStateFlow<String?>(null)
+    /** A link a page tried to open that is meant for another app (a sign-in handing back to its app, a payment app). */
+    val externalLink: StateFlow<String?> = _externalLink
+
+    fun dismissExternalLink() {
+        _externalLink.value = null
+    }
 
     private var adBlocker: WebExtension? = null
     private var adBlockWanted = adBlock
@@ -219,6 +229,23 @@ class BrowserController(
                 tab._canGoForward.value = canGoForward
             }
 
+            // The engine cannot show links meant for apps; without this they fail without a word.
+            override fun onLoadRequest(
+                session: GeckoSession,
+                request: GeckoSession.NavigationDelegate.LoadRequest,
+            ): GeckoResult<AllowOrDeny>? {
+                if (isWebAddress(request.uri)) return null
+                _externalLink.value = request.uri
+                return GeckoResult.deny()
+            }
+
+            override fun onLoadError(session: GeckoSession, uri: String?, error: WebRequestError): GeckoResult<String>? {
+                if (uri != null && error.code == WebRequestError.ERROR_UNKNOWN_PROTOCOL && !isWebAddress(uri)) {
+                    _externalLink.value = uri
+                }
+                return null
+            }
+
             // A link that wants its own window gets its own tab.
             override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession> {
                 val child = GeckoSession()
@@ -257,6 +284,9 @@ class BrowserController(
     fun select(id: Long) {
         _tabs.value.firstOrNull { it.id == id }?.let { _current.value = it }
     }
+
+    /** Switches to the tab [step] places along, wrapping round. */
+    fun selectNeighbour(step: Int) = select(neighbourTab(_tabs.value.map { it.id }, _current.value.id, step))
 
     /** Closes a tab. Closing the last one leaves a fresh blank tab. */
     fun close(id: Long) {
