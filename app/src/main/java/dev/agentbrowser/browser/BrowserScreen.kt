@@ -59,6 +59,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.view.View
 import android.widget.Toast
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
@@ -250,6 +251,9 @@ fun BrowserScreen(
                         AndroidView(
                             factory = { context ->
                                 GeckoView(context).apply {
+                                    // A view made in code has no id, and Android leaves such views out of what it
+                                    // shows password managers unless they say they matter.
+                                    importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
                                     setSession(tab.session)
                                     controller.capturePage = { capturePixels().await() }
                                 }
