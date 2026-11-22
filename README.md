@@ -44,7 +44,8 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 | **Ad blocking** | uBlock Origin is built in and on by default; a switch in settings turns it off. |
 | **Encrypted DNS** | Site lookups go over HTTPS (Cloudflare) by default, which gets past DNS-based blocking. Sites that support ECH also hide their name while connecting. |
 | **Desktop site** | Tablets, unfolded foldables and external displays get the desktop version of pages; phones get the mobile one. Settings can force either. |
-| **Keyboard and wide windows** | With a keyboard attached: Ctrl+L address, Ctrl+T / Ctrl+W new and close tab, Ctrl+Tab switch tab, Ctrl+R or F5 reload, Alt+← / Alt+→ back and forward, Ctrl+D bookmark, Ctrl+J Claude. On a window wider than it is tall (a monitor, a tablet, a phone on its side) Claude sits beside the page. |
+| **Translation** | Pages that are in neither Korean nor English are translated into Korean by themselves, through the Anthropic API (Claude Haiku). ⋮ → Translate page does it for any page, and the icon in the address bar brings the original back. Settings can turn the automatic part off or translate into English instead. |
+| **Keyboard and wide windows** | With a keyboard attached: Ctrl+L address, Ctrl+T / Ctrl+W new and close tab, Ctrl+Tab switch tab, Ctrl+R or F5 reload, Alt+← / Alt+→ back and forward, Ctrl+D bookmark, Ctrl+J Claude (the cursor lands in its message box), Esc cancels. In the message box Enter sends and Shift+Enter starts a new line. Right-click a link to open it in a new tab or copy it. On a window wider than it is tall (a monitor, a tablet, a phone on its side) Claude sits beside the page. |
 | **Hands off to apps** | A link meant for an app, such as a sign-in returning to its app or a payment app, asks before it opens there. |
 | **Google sign-in** | Built on the Firefox engine (GeckoView), so the Google sign-in that WebView apps are refused works. |
 | **Import from Chrome** | Bookmarks (HTML) and passwords (CSV), with saved logins filled in on sign-in pages. |
@@ -120,6 +121,7 @@ Claude is sent a numbered text list of the buttons, links and inputs rather than
 
 ## Safety
 
+- **Translation sends page text to Anthropic.** With automatic translation on (the default), the visible text of a page in a foreign language goes to the Anthropic API as soon as the page opens, and is billed to your key. A page with a password field is never translated by itself. Turn it off in Settings → Translation if you do not want that.
 - **Passwords never reach Claude.** The value of a password field is always blanked in what Claude reads, and such a page is never captured. Claude cannot type into a password field and has no tool that reads saved passwords.
 - **Confirmation has two layers.** An action is confirmed when Claude marks it risky, and also when the button's label says pay, order, send, delete or the like.
 - **Text on the page is not treated as instructions.** No defence against prompt injection is complete, so on accounts that matter, read the confirmation before you continue.
@@ -128,6 +130,7 @@ Claude is sent a numbered text list of the buttons, links and inputs rather than
 
 ## Known limits
 
+- Translation covers the text on the page when it finished loading, up to about 60,000 characters. Text a page adds later (endless feeds, comments that load on scroll) stays as it was until you translate again.
 - No history or download manager. Open tabs are gone when the app is closed.
 - Claude works in the tab you are looking at. Switch tabs mid-task and it carries on in the new one.
 - JavaScript alert/confirm dialogs, `<select>` dropdowns and file pickers do not appear.
@@ -197,7 +200,8 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 | **광고 차단** | uBlock Origin이 내장돼 기본으로 켜져 있고, 설정에서 끌 수 있습니다. |
 | **암호화 DNS** | 주소 조회를 기본으로 HTTPS(Cloudflare)로 보내 DNS 차단을 지나갑니다. ECH를 지원하는 사이트는 접속할 때 이름도 가려집니다. |
 | **데스크톱 사이트** | 태블릿, 펼친 폴더블, 외부 디스플레이에서는 데스크톱 버전으로, 폰에서는 모바일 버전으로 엽니다. 설정에서 한쪽으로 고정할 수 있습니다. |
-| **키보드와 넓은 창** | 키보드를 연결하면 Ctrl+L 주소창, Ctrl+T / Ctrl+W 새 탭과 탭 닫기, Ctrl+Tab 탭 전환, Ctrl+R 또는 F5 새로고침, Alt+← / Alt+→ 뒤로와 앞으로, Ctrl+D 북마크, Ctrl+J Claude를 씁니다. 가로가 세로보다 긴 창(모니터, 태블릿, 가로로 돌린 폰)에서는 Claude 패널이 페이지 옆에 놓입니다. |
+| **번역** | 한국어도 영어도 아닌 페이지는 Anthropic API(Claude Haiku)로 알아서 한국어로 번역합니다. ⋮ → 페이지 번역으로 어느 페이지든 번역할 수 있고, 주소창의 아이콘을 누르면 원문으로 돌아갑니다. 설정에서 자동 번역을 끄거나 영어로 번역하게 바꿀 수 있습니다. |
+| **키보드와 넓은 창** | 키보드를 연결하면 Ctrl+L 주소창, Ctrl+T / Ctrl+W 새 탭과 탭 닫기, Ctrl+Tab 탭 전환, Ctrl+R 또는 F5 새로고침, Alt+← / Alt+→ 뒤로와 앞으로, Ctrl+D 북마크, Ctrl+J Claude(커서가 입력창으로 갑니다), Esc 취소를 씁니다. Claude 입력창에서는 Enter로 보내고 Shift+Enter로 줄을 바꿉니다. 링크를 오른쪽 클릭하면 새 탭에서 열거나 주소를 복사합니다. 가로가 세로보다 긴 창(모니터, 태블릿, 가로로 돌린 폰)에서는 Claude 패널이 페이지 옆에 놓입니다. |
 | **앱으로 넘기기** | 로그인 후 앱으로 돌아가는 링크나 결제 앱 링크처럼 다른 앱을 여는 링크는 확인을 받고 그 앱에서 엽니다. |
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |
 | **Chrome에서 가져오기** | 북마크(HTML)와 비밀번호(CSV)를 가져오고, 로그인 화면에서 자동으로 채웁니다. |
@@ -233,6 +237,7 @@ Chrome 데이터는 **설정 → Chrome에서 가져오기**에서 옮깁니다.
 
 ## 안전장치
 
+- **번역은 페이지의 글을 Anthropic으로 보냅니다.** 자동 번역이 켜져 있으면(기본값) 외국어 페이지를 열 때 화면에 보이는 글이 바로 Anthropic API로 가고, 요금은 내 키에 청구됩니다. 비밀번호 입력창이 있는 페이지는 알아서 번역하지 않습니다. 원하지 않으면 설정 → 번역에서 끄세요.
 - **비밀번호는 Claude에게 가지 않습니다.** 비밀번호 입력창의 값은 페이지 내용에서 항상 비우고, 그런 화면은 캡처하지 않습니다. Claude는 비밀번호 입력창에 입력할 수 없고 저장된 비밀번호를 읽는 도구도 없습니다.
 - **확인 절차는 두 겹입니다.** Claude가 위험하다고 표시한 동작과, 버튼 글자에 결제·주문·전송·삭제 같은 단어가 있는 동작 모두 확인을 받습니다.
 - **페이지 안의 문장은 지시로 다루지 않습니다.** 다만 프롬프트 인젝션을 완전히 막는 방법은 없으므로, 중요한 계정에서는 확인 창의 내용을 읽고 진행하세요.
@@ -241,6 +246,7 @@ Chrome 데이터는 **설정 → Chrome에서 가져오기**에서 옮깁니다.
 
 ## 알려진 한계
 
+- 번역은 페이지가 다 열린 시점의 글을 약 6만 자까지 다룹니다. 그 뒤에 페이지가 덧붙이는 글(끝없이 이어지는 피드, 스크롤하면 불러오는 댓글)은 다시 번역하기 전까지 그대로입니다.
 - 방문 기록과 다운로드 관리가 없습니다. 열어 둔 탭은 앱을 종료하면 사라집니다.
 - Claude는 지금 보고 있는 탭에서만 동작합니다. 작업 중에 탭을 바꾸면 바꾼 탭에서 이어 갑니다.
 - 자바스크립트 alert/confirm, `<select>` 드롭다운, 파일 업로드 선택 창이 뜨지 않습니다.

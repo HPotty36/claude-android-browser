@@ -1,5 +1,10 @@
 package dev.agentbrowser
 
+import android.os.Build
+import androidx.compose.runtime.remember
+import dev.agentbrowser.browser.KeyShortcut
+import dev.agentbrowser.browser.smallestSideDp
+import org.mozilla.geckoview.GeckoView
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -52,7 +57,10 @@ class MainActivity : ComponentActivity() {
             // The shorter side of the screen decides, so a tablet, an unfolded foldable or an external display
             // gets desktop pages and a phone held sideways does not.
             val desktopChoice by app.settings.desktopSite.collectAsState()
-            val desktopSite = wantsDesktopSite(desktopChoice, LocalConfiguration.current.smallestScreenWidthDp)
+            // Measured on the display, not the window: resizing a free-form window must not reload every tab.
+            val configuration = LocalConfiguration.current
+            val displayDp = remember(configuration) { displaySmallestWidthDp() }
+            val desktopSite = wantsDesktopSite(desktopChoice, displayDp)
             LaunchedEffect(desktopSite) { app.browser.setDesktopSite(desktopSite) }
             var screen by rememberSaveable { mutableStateOf("browser") }
             val scope = rememberCoroutineScope()
@@ -103,6 +111,8 @@ class MainActivity : ComponentActivity() {
                                     isBookmarked = saved,
                                     updateAvailable = updateState.hasUpdate,
                                     shortcutEvents = app.shortcuts,
+                                    onTranslate = { app.translations.translate(app.browser.current.value) },
+                                    onShowOriginal = { app.translations.showOriginal(app.browser.current.value) },
                                     onToggleBookmark = {
                                         scope.launch {
                                             if (saved) app.bookmarks.deleteByUrl(url) else app.bookmarks.add(title, url)
@@ -131,13 +141,23 @@ class MainActivity : ComponentActivity() {
         val shortcuts = (application as App).shortcuts
         if (event.action == KeyEvent.ACTION_DOWN && shortcuts.subscriptionCount.value > 0) {
             val shortcut = shortcutFor(event.keyCode, event.isCtrlPressed, event.isShiftPressed, event.isAltPressed)
-            if (shortcut != null) {
+            // Escape belongs to the page while the page has the keyboard: it closes the page's own dialogs.
+            val pagesKey = shortcut == KeyShortcut.Escape && currentFocus is GeckoView
+            if (shortcut != null && !pagesKey) {
                 if (event.repeatCount == 0) shortcuts.tryEmit(shortcut)
                 return true
             }
         }
         return super.dispatchKeyEvent(event)
     }
+
+    private fun displaySmallestWidthDp(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bounds = windowManager.maximumWindowMetrics.bounds
+            smallestSideDp(bounds.width(), bounds.height(), resources.displayMetrics.density)
+        } else {
+            resources.configuration.smallestScreenWidthDp
+        }
 
     private fun openLink(intent: Intent?) {
         val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return

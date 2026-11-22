@@ -12,6 +12,10 @@ const val LARGE_SCREEN_DP = 600
  * Whether pages should be asked for their desktop version. [smallestWidthDp] is the screen's shorter side,
  * so turning a phone on its side does not count as a large screen.
  */
+/** The shorter side of a screen of [widthPx] by [heightPx] pixels, in dp. */
+fun smallestSideDp(widthPx: Int, heightPx: Int, density: Float): Int =
+    if (density <= 0f) 0 else (minOf(widthPx, heightPx) / density).toInt()
+
 fun wantsDesktopSite(choice: DesktopSite, smallestWidthDp: Int): Boolean = when (choice) {
     DesktopSite.ALWAYS -> true
     DesktopSite.NEVER -> false

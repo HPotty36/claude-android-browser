@@ -155,7 +155,79 @@
     return { ok: "" };
   }
 
-  const commands = { snapshot, info, click, type, scroll, highlight };
+  // --- Translation: the page's visible text goes out in pieces and comes back translated. ---
+
+  const MAX_TRANSLATE_CHARS = 60000;
+  const UNTRANSLATED = new Set([
+    "SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT", "OPTION",
+    "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME",
+  ]);
+  let pieces = new Map(); // id -> { node, original, translated }
+  let nextPiece = 1;
+  let translatedNodes = new WeakSet();
+
+  function translatable(node) {
+    const text = node.nodeValue;
+    if (!text || text.trim().length < 2 || !/\p{L}/u.test(text)) return false;
+    const parent = node.parentElement;
+    if (!parent) return false;
+    for (let el = parent; el; el = el.parentElement) {
+      if (UNTRANSLATED.has(el.tagName.toUpperCase()) || el.isContentEditable) return false;
+      if (el.getAttribute("translate") === "no" || el.classList.contains("notranslate")) return false;
+    }
+    return visible(parent);
+  }
+
+  function language() {
+    return {
+      lang: (document.documentElement && document.documentElement.getAttribute("lang")) || "",
+      sample: (document.body ? document.body.innerText : "").slice(0, 2000),
+      hasPasswordField: !!document.querySelector("input[type=password]"),
+    };
+  }
+
+  function collect() {
+    const items = [];
+    if (!document.body) return { items };
+    let chars = 0;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (translatedNodes.has(node) || !translatable(node)) continue;
+      const text = node.nodeValue;
+      if (chars + text.length > MAX_TRANSLATE_CHARS) break;
+      chars += text.length;
+      const id = nextPiece++;
+      pieces.set(id, { node, original: text, translated: false });
+      items.push({ id, text });
+    }
+    return { items };
+  }
+
+  function apply(args) {
+    for (const item of args.items || []) {
+      const piece = pieces.get(item.id);
+      if (!piece || !piece.node.isConnected || typeof item.text !== "string") continue;
+      // The spaces around a piece hold the sentence together with its neighbours; keep them.
+      const lead = piece.original.match(/^\s*/)[0];
+      const trail = piece.original.match(/\s*$/)[0];
+      piece.node.nodeValue = lead + item.text.trim() + trail;
+      piece.translated = true;
+      translatedNodes.add(piece.node);
+    }
+    return { ok: "" };
+  }
+
+  function restore() {
+    for (const piece of pieces.values()) {
+      if (piece.translated && piece.node.isConnected) piece.node.nodeValue = piece.original;
+    }
+    pieces = new Map();
+    translatedNodes = new WeakSet();
+    return { ok: "" };
+  }
+
+  const commands = { snapshot, info, click, type, scroll, highlight, language, collect, apply, restore };
 
   const port = browser.runtime.connectNative("browser");
   port.onMessage.addListener((message) => {

@@ -29,4 +29,8 @@ class DesktopSiteTest {
             "https://example.com/?next=https://m.naver.com/", "not a url", "")
             .forEach { assertNull(it, desktopUrl(it)) }
     }
+
+    @Test fun aMonitorIsMeasuredByItsShorterSide() = assertEquals(1080, smallestSideDp(1920, 1080, density = 1f))
+    @Test fun aPhonesPixelsAreScaledDown() = assertEquals(411, smallestSideDp(2400, 1080, density = 2.625f))
+    @Test fun aScreenWithNoDensityCountsAsSmall() = assertEquals(0, smallestSideDp(1920, 1080, density = 0f))
 }

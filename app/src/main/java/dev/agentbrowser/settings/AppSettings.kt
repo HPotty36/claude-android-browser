@@ -5,6 +5,8 @@ import dev.agentbrowser.browser.DesktopSite
 import dev.agentbrowser.browser.SearchEngine
 import dev.agentbrowser.browser.desktopSiteById
 import dev.agentbrowser.browser.searchEngineById
+import dev.agentbrowser.translate.TranslateTarget
+import dev.agentbrowser.translate.translateTargetById
 import dev.agentbrowser.ui.Language
 import dev.agentbrowser.ui.Strings
 import dev.agentbrowser.ui.languageById
@@ -14,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 const val DEFAULT_MODEL = "claude-sonnet-5-5"
+/** Pages are translated with the fast model whatever the chat uses: it is a lot of text and little thinking. */
+const val TRANSLATION_MODEL = "claude-haiku-5-5"
 /** Model ID to the name shown in settings. */
 val KNOWN_MODELS = listOf(
     "claude-sonnet-5-5" to "Sonnet 5.5",
@@ -52,6 +56,22 @@ class AppSettings(context: Context, private val secrets: SecretStore, prefsName:
     fun setDesktopSite(choice: DesktopSite) {
         prefs.edit().putString("desktop_site", choice.id).apply()
         _desktopSite.value = choice
+    }
+
+    private val _autoTranslate = MutableStateFlow(prefs.getBoolean("auto_translate", true))
+    val autoTranslate: StateFlow<Boolean> = _autoTranslate
+
+    fun setAutoTranslate(on: Boolean) {
+        prefs.edit().putBoolean("auto_translate", on).apply()
+        _autoTranslate.value = on
+    }
+
+    private val _translateTarget = MutableStateFlow(translateTargetById(prefs.getString("translate_target", null)))
+    val translateTarget: StateFlow<TranslateTarget> = _translateTarget
+
+    fun setTranslateTarget(target: TranslateTarget) {
+        prefs.edit().putString("translate_target", target.id).apply()
+        _translateTarget.value = target
     }
 
     private val _adBlock = MutableStateFlow(prefs.getBoolean("ad_block", true))

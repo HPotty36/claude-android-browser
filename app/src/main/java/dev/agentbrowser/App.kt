@@ -1,5 +1,11 @@
 package dev.agentbrowser
 
+import dev.agentbrowser.agent.Block
+import dev.agentbrowser.agent.Message
+import dev.agentbrowser.settings.TRANSLATION_MODEL
+import dev.agentbrowser.translate.ClaudeTranslationClient
+import dev.agentbrowser.translate.PageTranslations
+import dev.agentbrowser.translate.Translator
 import android.app.Application
 import dev.agentbrowser.agent.AgentLoop
 import dev.agentbrowser.agent.HttpClaudeClient
@@ -39,9 +45,25 @@ class App : Application() {
         ).also { controller ->
             controller.runtime.autocompleteStorageDelegate = GeckoLoginStorage(logins, scope)
             controller.promptDelegate = loginPrompts
+            controller.onPageLoaded = { tab -> translations.onPageLoaded(tab) }
             scope.launch { settings.adBlock.collect(controller::setAdBlock) }
             scope.launch { settings.encryptedDns.collect(controller::setEncryptedDns) }
         }
+    }
+
+    val translations: PageTranslations by lazy {
+        val client = HttpClaudeClient(settings::apiKeyBlocking, { TRANSLATION_MODEL })
+        val translator = Translator(ClaudeTranslationClient { system, user ->
+            client.send(system, listOf(Message("user", listOf(Block.Text(user)))), emptyList())
+                .content.filterIsInstance<Block.Text>().joinToString("") { it.text }
+        })
+        PageTranslations(
+            translator = translator,
+            scope = scope,
+            automatic = { settings.autoTranslate.value },
+            target = { settings.translateTarget.value },
+            hasKey = { settings.apiKeyBlocking() != null },
+        )
     }
 
     /** Hardware keyboard shortcuts, from the activity that sees the keys to the screen that acts on them. */

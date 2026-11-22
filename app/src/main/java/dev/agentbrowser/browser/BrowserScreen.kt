@@ -1,5 +1,11 @@
 package dev.agentbrowser.browser
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.runtime.MutableState
+import dev.agentbrowser.translate.TranslationState
+import kotlinx.coroutines.channels.Channel
 import dev.agentbrowser.ui.LocalStrings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -127,6 +133,8 @@ fun BrowserScreen(
     isBookmarked: Boolean,
     updateAvailable: Boolean,
     shortcutEvents: Flow<KeyShortcut>,
+    onTranslate: () -> Boolean,
+    onShowOriginal: () -> Unit,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
     onSettings: () -> Unit,
@@ -143,6 +151,7 @@ fun BrowserScreen(
     var chatFraction by rememberSaveable { mutableStateOf(PANEL_DEFAULT) }
     var areaPx by remember { mutableStateOf(0) }
     val agentRunning by chat.running.collectAsState()
+    val translation by controller.translation.collectAsState()
     val pendingConfirm by chat.pendingConfirm.collectAsState()
     val loginPrompt by loginPrompts.prompt.collectAsState()
     loginPrompt?.let { LoginPromptDialog(it) }
@@ -175,17 +184,66 @@ fun BrowserScreen(
         )
     }
 
-    // Counts requests to put the cursor in the address field.
-    var addressFocus by remember { mutableStateOf(0) }
+    val contextLink by controller.contextLink.collectAsState()
+    contextLink?.let { link ->
+        AlertDialog(
+            onDismissRequest = controller::dismissContextLink,
+            text = { Text(link, maxLines = 3, overflow = TextOverflow.Ellipsis) },
+            confirmButton = {
+                TextButton(onClick = {
+                    controller.dismissContextLink()
+                    controller.newTab(link)
+                }) { Text(s.openInNewTab) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    controller.dismissContextLink()
+                    context.getSystemService(ClipboardManager::class.java)
+                        ?.setPrimaryClip(ClipData.newPlainText("link", link))
+                }) { Text(s.copyLink) }
+            },
+        )
+    }
+
+    // The address being typed, or null while the bar only shows where the page is.
+    val addressEditState = remember { mutableStateOf<TextFieldValue?>(null) }
+    var addressEdit by addressEditState
+    // The page's view, so the keyboard can be handed back to the page.
+    var pageView by remember { mutableStateOf<GeckoView?>(null) }
+    val chatFocus = remember { Channel<Unit>(Channel.CONFLATED) }
+    // Full-screen chat hides the bar, and an address nobody can see is not being typed.
+    LaunchedEffect(fullChat) { if (fullChat) addressEdit = null }
     val toggleBookmark by rememberUpdatedState(onToggleBookmark)
     LaunchedEffect(shortcutEvents) {
         shortcutEvents.collect { shortcut ->
+            // These act on the page and the bar, so both come back into view first.
+            if (shortcut != KeyShortcut.ToggleClaude && shortcut != KeyShortcut.Escape) chatExpanded = false
             when (shortcut) {
                 KeyShortcut.FocusAddress -> {
-                    chatExpanded = false
-                    addressFocus++
+                    val current = addressEdit
+                    addressEdit = if (current != null) {
+                        current.copy(selection = TextRange(0, current.text.length))
+                    } else {
+                        val shown = controller.url.value.takeUnless { it == HOME_URL }.orEmpty()
+                        TextFieldValue(shown, TextRange(0, shown.length))
+                    }
                 }
-                KeyShortcut.NewTab -> controller.newTab()
+                KeyShortcut.NewTab -> {
+                    controller.newTab()
+                    addressEdit = TextFieldValue("")
+                }
+                KeyShortcut.Escape -> when {
+                    addressEdit != null -> {
+                        addressEdit = null
+                        pageView?.requestFocus()
+                    }
+                    chatExpanded -> chatExpanded = false
+                    chatOpen -> {
+                        chatOpen = false
+                        pageView?.requestFocus()
+                    }
+                    else -> controller.stop()
+                }
                 KeyShortcut.CloseTab -> controller.close(controller.current.value.id)
                 KeyShortcut.NextTab -> controller.selectNeighbour(1)
                 KeyShortcut.PreviousTab -> controller.selectNeighbour(-1)
@@ -193,7 +251,10 @@ fun BrowserScreen(
                 KeyShortcut.Back -> controller.back()
                 KeyShortcut.Forward -> controller.forward()
                 KeyShortcut.ToggleBookmark -> if (controller.url.value.startsWith("http")) toggleBookmark()
-                KeyShortcut.ToggleClaude -> chatOpen = !chatOpen
+                KeyShortcut.ToggleClaude -> {
+                    chatOpen = !chatOpen
+                    if (chatOpen) chatFocus.trySend(Unit) else pageView?.requestFocus()
+                }
             }
         }
     }
@@ -233,6 +294,8 @@ fun BrowserScreen(
                 onClose = { chatOpen = false },
                 onOpenSettings = { openSettings() },
                 modifier = panelModifier,
+                beside = !resizable,
+                focusRequests = chatFocus,
             )
         }
     }
@@ -256,6 +319,7 @@ fun BrowserScreen(
                                     importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
                                     setSession(tab.session)
                                     controller.capturePage = { capturePixels().await() }
+                                    pageView = this
                                 }
                             },
                             // Switching tabs hands the view the other tab's session.
@@ -266,6 +330,7 @@ fun BrowserScreen(
                                 }
                             },
                             onRelease = { view ->
+                                pageView = null
                                 controller.capturePage = null
                                 view.releaseSession()
                             },
@@ -294,7 +359,11 @@ fun BrowserScreen(
                         agentRunning = agentRunning,
                         isBookmarked = isBookmarked,
                         updateAvailable = updateAvailable,
-                        addressFocus = addressFocus,
+                        addressEdit = addressEditState,
+                        translation = translation,
+                        onTranslate = { if (!onTranslate()) Toast.makeText(context, s.translateNeedsKey, Toast.LENGTH_SHORT).show() },
+                        onShowOriginal = onShowOriginal,
+                        onPageFocus = { pageView?.requestFocus() },
                         onClaude = { chatOpen = !chatOpen },
                         onToggleBookmark = onToggleBookmark,
                         onBookmarks = onBookmarks,
@@ -320,7 +389,11 @@ private fun CommandBar(
     agentRunning: Boolean,
     isBookmarked: Boolean,
     updateAvailable: Boolean,
-    addressFocus: Int,
+    addressEdit: MutableState<TextFieldValue?>,
+    translation: TranslationState,
+    onTranslate: () -> Unit,
+    onShowOriginal: () -> Unit,
+    onPageFocus: () -> Unit,
     onClaude: () -> Unit,
     onToggleBookmark: () -> Unit,
     onBookmarks: () -> Unit,
@@ -333,7 +406,7 @@ private fun CommandBar(
     val tabs by controller.tabs.collectAsState()
     val loading = progress in 1..99 && !onStartPage
     // Editing swaps the read-only host for a fresh text field, so the field always starts from the full URL.
-    var editing by remember { mutableStateOf<TextFieldValue?>(null) }
+    var editing by addressEdit
     var menuOpen by remember { mutableStateOf(false) }
     var tabsOpen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
@@ -341,12 +414,6 @@ private fun CommandBar(
     val s = LocalStrings.current
 
     BackHandler(enabled = editing != null) { editing = null }
-    LaunchedEffect(addressFocus) {
-        if (addressFocus > 0) {
-            val text = if (onStartPage) "" else url
-            editing = TextFieldValue(text, TextRange(0, text.length))
-        }
-    }
     if (tabsOpen) TabsSheet(controller, onDismiss = { tabsOpen = false })
 
     // On a wide window the bar stays a bar: centred, not stretched from edge to edge.
@@ -373,6 +440,8 @@ private fun CommandBar(
                         if (draft.text.isNotBlank()) controller.load(toUrl(draft.text, searchUrl))
                         focus.clearFocus()
                         editing = null
+                        // The page takes the keyboard, so the arrows and the space bar scroll it straight away.
+                        onPageFocus()
                     }),
                     modifier = Modifier.fillMaxWidth().padding(start = 4.dp).focusRequester(requester).onFocusChanged { state ->
                         if (state.isFocused) hadFocus = true else if (hadFocus) editing = null
@@ -415,6 +484,21 @@ private fun CommandBar(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
+                    when (translation) {
+                        TranslationState.Off -> Unit
+                        is TranslationState.Working -> IconButton(onClick = onShowOriginal) {
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp, color = colors.primary)
+                                Icon(Icons.Outlined.Translate, contentDescription = s.cancelTranslation, tint = colors.primary, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                        TranslationState.Translated -> IconButton(onClick = onShowOriginal) {
+                            Icon(Icons.Outlined.Translate, contentDescription = s.translatedTapForOriginal, tint = colors.primary)
+                        }
+                        TranslationState.Failed -> IconButton(onClick = onTranslate) {
+                            Icon(Icons.Outlined.Translate, contentDescription = s.translationFailed, tint = colors.error)
+                        }
+                    }
                     if (loading) {
                         IconButton(onClick = controller::stop) {
                             Icon(Icons.Filled.Close, contentDescription = s.stopLoading, tint = colors.onSurfaceVariant)
@@ -493,6 +577,12 @@ private fun CommandBar(
                         }
                         if (updateAvailable) item(s.updateMenu, Icons.Outlined.SystemUpdate, action = onSettings)
                         item(s.newTab, Icons.Filled.Add) { controller.newTab() }
+                        when (translation) {
+                            TranslationState.Off, TranslationState.Failed ->
+                                item(s.translatePage, Icons.Outlined.Translate, enabled = !onStartPage, action = onTranslate)
+                            is TranslationState.Working -> item(s.cancelTranslation, Icons.Outlined.Translate, action = onShowOriginal)
+                            TranslationState.Translated -> item(s.showOriginal, Icons.Outlined.Translate, action = onShowOriginal)
+                        }
                         item(s.bookmarks, Icons.Outlined.Bookmarks, action = onBookmarks)
                         item(s.home, Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)
                         item(s.settings, Icons.Outlined.Settings, action = onSettings)

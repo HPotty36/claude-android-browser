@@ -1,5 +1,16 @@
 package dev.agentbrowser.chat
 
+import android.view.KeyCharacterMap
+import android.view.KeyEvent as AndroidKeyEvent
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
+import kotlinx.coroutines.channels.ReceiveChannel
 import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -76,6 +87,8 @@ fun ChatPanel(
     onClose: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    beside: Boolean = false,
+    focusRequests: ReceiveChannel<Unit>? = null,
 ) {
     val items by model.items.collectAsState()
     val running by model.running.collectAsState()
@@ -83,6 +96,21 @@ fun ChatPanel(
     val listState = rememberLazyListState()
     val colors = MaterialTheme.colorScheme
     val s = LocalStrings.current
+    // The header's gesture outlives a move between the bottom and the side, so it must call what is current.
+    val drag by rememberUpdatedState(onDrag)
+    val dragEnd by rememberUpdatedState(onDragEnd)
+    val focusManager = LocalFocusManager.current
+    val inputFocus = remember { FocusRequester() }
+    LaunchedEffect(focusRequests) {
+        if (focusRequests != null) for (request in focusRequests) runCatching { inputFocus.requestFocus() }
+    }
+    val submit = {
+        // While Claude works the model takes nothing, so the draft stays for later.
+        if (!running && draft.text.isNotBlank()) {
+            model.send(draft.text)
+            draft = TextFieldValue("")
+        }
+    }
 
     LaunchedEffect(items.size, running) {
         val last = items.size + (if (running) 1 else 0) - 1
@@ -91,8 +119,8 @@ fun ChatPanel(
 
     Surface(
         color = colors.surfaceContainerLow,
-        shape = if (expanded) RectangleShape else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        border = if (expanded) null else BorderStroke(1.dp, colors.outlineVariant),
+        shape = if (expanded || beside) RectangleShape else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        border = if (expanded || beside) null else BorderStroke(1.dp, colors.outlineVariant),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
@@ -100,16 +128,17 @@ fun ChatPanel(
             Column(
                 Modifier.fillMaxWidth().pointerInput(Unit) {
                     detectVerticalDragGestures(
-                        onDragEnd = { onDragEnd() },
-                        onDragCancel = { onDragEnd() },
+                        onDragEnd = { dragEnd() },
+                        onDragCancel = { dragEnd() },
                     ) { change, dragAmount ->
                         change.consume()
-                        onDrag(dragAmount)
+                        drag(dragAmount)
                     }
                 },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(
+                // Beside the page there is nothing to drag, so no grip is drawn.
+                if (!beside) Box(
                     Modifier
                         .padding(top = 8.dp)
                         .size(width = 36.dp, height = 4.dp)
@@ -186,7 +215,32 @@ fun ChatPanel(
                     minHeight = 44.dp,
                     singleLine = false,
                     maxLines = 4,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(inputFocus).onPreviewKeyEvent { event ->
+                        val key = event.nativeKeyEvent
+                        // An on-screen keyboard's Enter stays a line break: there the button sends.
+                        val hardware = key.deviceId != KeyCharacterMap.VIRTUAL_KEYBOARD
+                        val down = key.action == AndroidKeyEvent.ACTION_DOWN
+                        val enter = key.keyCode == AndroidKeyEvent.KEYCODE_ENTER || key.keyCode == AndroidKeyEvent.KEYCODE_NUMPAD_ENTER
+                        when {
+                            !hardware -> false
+                            sendsMessage(key.keyCode, key.isShiftPressed, key.isCtrlPressed, key.isAltPressed) -> {
+                                if (down && key.repeatCount == 0) submit()
+                                true
+                            }
+                            enter -> {
+                                if (down) {
+                                    val (text, cursor) = withNewLine(draft.text, draft.selection.start, draft.selection.end)
+                                    draft = TextFieldValue(text, TextRange(cursor))
+                                }
+                                true
+                            }
+                            key.keyCode == AndroidKeyEvent.KEYCODE_TAB && !key.isCtrlPressed && !key.isAltPressed -> {
+                                if (down) focusManager.moveFocus(if (key.isShiftPressed) FocusDirection.Previous else FocusDirection.Next)
+                                true
+                            }
+                            else -> false
+                        }
+                    },
                     trailing = { Spacer(Modifier.width(12.dp)) },
                 )
                 Spacer(Modifier.width(8.dp))
@@ -201,10 +255,7 @@ fun ChatPanel(
                     ) { Icon(Icons.Filled.Stop, contentDescription = s.stop) }
                 } else {
                     FilledIconButton(
-                        onClick = {
-                            model.send(draft.text)
-                            draft = TextFieldValue("")
-                        },
+                        onClick = submit,
                         enabled = draft.text.isNotBlank(),
                         modifier = Modifier.size(44.dp),
                     ) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = s.send) }

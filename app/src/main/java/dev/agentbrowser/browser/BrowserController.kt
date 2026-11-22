@@ -8,7 +8,9 @@ import dev.agentbrowser.page.CurrentTabDriver
 import dev.agentbrowser.page.GeckoPageDriver
 import dev.agentbrowser.page.PageDriver
 import kotlinx.coroutines.CoroutineScope
+import dev.agentbrowser.translate.TranslationState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -51,6 +53,21 @@ class Tab internal constructor(val id: Long, val session: GeckoSession, capture:
     val progress: StateFlow<Int> = _progress
     val canGoBack: StateFlow<Boolean> = _canGoBack
     val canGoForward: StateFlow<Boolean> = _canGoForward
+
+    private val _translation = MutableStateFlow<TranslationState>(TranslationState.Off)
+    val translation: StateFlow<TranslationState> = _translation
+    internal var translationJob: Job? = null
+
+    internal fun setTranslation(state: TranslationState) {
+        _translation.value = state
+    }
+
+    /** A new page: whatever was being translated belongs to the old one. */
+    internal fun forgetTranslation() {
+        translationJob?.cancel()
+        translationJob = null
+        _translation.value = TranslationState.Off
+    }
 
     internal val driver = GeckoPageDriver(session, capture)
     /** A load asked for before the agent extension was ready. */
@@ -100,6 +117,17 @@ class BrowserController(
             _tabs.value.forEach { it.session.promptDelegate = value }
         }
 
+    private val _contextLink = MutableStateFlow<String?>(null)
+    /** The link the user asked a menu for, until they answer it. */
+    val contextLink: StateFlow<String?> = _contextLink
+
+    fun dismissContextLink() {
+        _contextLink.value = null
+    }
+
+    /** Called when a web page has finished loading in a tab. */
+    var onPageLoaded: ((Tab) -> Unit)? = null
+
     private var nextId = 1L
     private var extension: WebExtension? = null
     private var extensionReady = false
@@ -130,6 +158,9 @@ class BrowserController(
     val canGoBack: StateFlow<Boolean> = current.flatMapLatest { it.canGoBack }.stateIn(scope, SharingStarted.Eagerly, false)
     val canGoForward: StateFlow<Boolean> =
         current.flatMapLatest { it.canGoForward }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    val translation: StateFlow<TranslationState> =
+        current.flatMapLatest { it.translation }.stateIn(scope, SharingStarted.Eagerly, TranslationState.Off)
 
     val pageDriver: PageDriver = CurrentTabDriver { _current.value.driver }
 
@@ -238,7 +269,10 @@ class BrowserController(
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 hasUserGesture: Boolean,
             ) {
+                val previous = tab._url.value
                 tab._url.value = url.orEmpty()
+                // A jump within the page keeps its text; anything else is another page.
+                if (previous.substringBefore('#') != url.orEmpty().substringBefore('#')) tab.forgetTranslation()
             }
 
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
@@ -285,11 +319,23 @@ class BrowserController(
 
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 tab._progress.value = 100
+                if (success && tab.url.value.startsWith("http")) onPageLoaded?.invoke(tab)
             }
         }
         session.contentDelegate = object : GeckoSession.ContentDelegate {
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 tab._title.value = title.orEmpty()
+            }
+
+            // A right click, or a long press: the link under it gets a menu.
+            override fun onContextMenu(
+                session: GeckoSession,
+                screenX: Int,
+                screenY: Int,
+                element: GeckoSession.ContentDelegate.ContextElement,
+            ) {
+                val link = element.linkUri
+                if (link != null && isWebAddress(link)) _contextLink.value = link
             }
         }
         session.promptDelegate = promptDelegate

@@ -9,10 +9,16 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import dev.agentbrowser.translate.TextItem
+import dev.agentbrowser.translate.TranslatablePage
+import org.json.JSONArray
 import org.json.JSONObject
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.WebExtension
 import java.io.ByteArrayOutputStream
+
+/** [lang] is the page's own `lang` attribute, empty when it has none. */
+data class PageLanguage(val lang: String, val sample: String, val hasPasswordField: Boolean)
 
 private const val TIMEOUT_MS = 10_000L
 private const val NO_RESPONSE = "The page did not respond."
@@ -27,7 +33,7 @@ private const val SCREENSHOT_MAX_SIDE = 1024
 class GeckoPageDriver(
     private val session: GeckoSession,
     private val capture: suspend () -> Bitmap?,
-) : PageDriver, WebExtension.MessageDelegate, WebExtension.PortDelegate {
+) : PageDriver, TranslatablePage, WebExtension.MessageDelegate, WebExtension.PortDelegate {
 
     private class Pending(val port: WebExtension.Port, val reply: CompletableDeferred<JSONObject?>)
 
@@ -136,6 +142,30 @@ class GeckoPageDriver(
 
     override suspend fun highlight(ref: Int?) {
         call("highlight", JSONObject().put("ref", ref ?: JSONObject.NULL), timeoutMs = 1_000)
+    }
+
+    /** What the page says about its language, and a sample of its text; null when the page does not answer. */
+    suspend fun pageLanguage(): PageLanguage? {
+        val json = (call("language") as? Reply.Result)?.json ?: return null
+        return PageLanguage(json.optString("lang"), json.optString("sample"), json.optBoolean("hasPasswordField"))
+    }
+
+    override suspend fun collect(): List<TextItem> {
+        val items = (call("collect") as? Reply.Result)?.json?.optJSONArray("items") ?: return emptyList()
+        return (0 until items.length()).mapNotNull { index ->
+            val item = items.optJSONObject(index) ?: return@mapNotNull null
+            TextItem(item.optInt("id"), item.optString("text"))
+        }
+    }
+
+    override suspend fun apply(items: List<TextItem>) {
+        val array = JSONArray()
+        items.forEach { array.put(JSONObject().put("id", it.id).put("text", it.text)) }
+        call("apply", JSONObject().put("items", array))
+    }
+
+    override suspend fun restore() {
+        call("restore")
     }
 
     /** Gives a navigation started by the last action a moment to begin, so the next read sees the new page. */

@@ -39,7 +39,7 @@ class HttpClaudeClient(
             put("max_tokens", MAX_TOKENS)
             put("system", system)
             put("messages", buildJsonArray { messages.forEach { add(encodeMessage(it)) } })
-            put("tools", buildJsonArray { tools.forEach { add(encodeTool(it)) } })
+            if (tools.isNotEmpty()) put("tools", buildJsonArray { tools.forEach { add(encodeTool(it)) } })
         }
         val request = Request.Builder()
             .url("$baseUrl/v1/messages")

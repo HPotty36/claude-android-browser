@@ -1,5 +1,6 @@
 package dev.agentbrowser.settings
 
+import dev.agentbrowser.translate.TranslateTarget
 import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -74,6 +75,8 @@ fun SettingsScreen(
             SearchEnginePicker(settings)
             SectionLabel(s.desktopSite)
             DesktopSitePicker(settings)
+            SectionLabel(s.translation)
+            TranslationSettings(settings)
             SectionLabel(s.protection)
             ProtectionSwitches(settings)
             SectionLabel(s.language)
@@ -144,6 +147,31 @@ private fun DesktopSitePicker(settings: AppSettings) {
             SegmentedButton(
                 selected = current == choice,
                 onClick = { settings.setDesktopSite(choice) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+            ) { Text(label) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TranslationSettings(settings: AppSettings) {
+    val s = LocalStrings.current
+    val automatic by settings.autoTranslate.collectAsState()
+    val target by settings.translateTarget.collectAsState()
+    SwitchRow(s.autoTranslate, s.autoTranslateNote, automatic, settings::setAutoTranslate)
+    Text(
+        s.translateTo,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 8.dp),
+    )
+    val options = listOf(TranslateTarget.KOREAN to s.languageKorean, TranslateTarget.ENGLISH to s.languageEnglish)
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        options.forEachIndexed { index, (choice, label) ->
+            SegmentedButton(
+                selected = target == choice,
+                onClick = { settings.setTranslateTarget(choice) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
             ) { Text(label) }
         }

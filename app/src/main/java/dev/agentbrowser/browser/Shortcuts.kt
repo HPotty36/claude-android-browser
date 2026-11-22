@@ -3,7 +3,7 @@ package dev.agentbrowser.browser
 import android.view.KeyEvent
 
 /** What a hardware keyboard can ask of the browser. */
-enum class KeyShortcut { FocusAddress, NewTab, CloseTab, NextTab, PreviousTab, Reload, Back, Forward, ToggleBookmark, ToggleClaude }
+enum class KeyShortcut { FocusAddress, NewTab, CloseTab, NextTab, PreviousTab, Reload, Back, Forward, ToggleBookmark, ToggleClaude, Escape }
 
 /** The shortcut a key press means, or null when the key belongs to the page. They follow desktop browsers. */
 fun shortcutFor(keyCode: Int, ctrl: Boolean, shift: Boolean, alt: Boolean): KeyShortcut? = when {
@@ -18,7 +18,11 @@ fun shortcutFor(keyCode: Int, ctrl: Boolean, shift: Boolean, alt: Boolean): KeyS
         KeyEvent.KEYCODE_J -> KeyShortcut.ToggleClaude
         else -> null
     }
-    ctrl && shift && !alt -> if (keyCode == KeyEvent.KEYCODE_TAB) KeyShortcut.PreviousTab else null
+    ctrl && shift && !alt -> when (keyCode) {
+        KeyEvent.KEYCODE_TAB -> KeyShortcut.PreviousTab
+        KeyEvent.KEYCODE_R -> KeyShortcut.Reload
+        else -> null
+    }
     alt && !ctrl && !shift -> when (keyCode) {
         KeyEvent.KEYCODE_D -> KeyShortcut.FocusAddress
         KeyEvent.KEYCODE_DPAD_LEFT -> KeyShortcut.Back
@@ -28,6 +32,9 @@ fun shortcutFor(keyCode: Int, ctrl: Boolean, shift: Boolean, alt: Boolean): KeyS
     !ctrl && !shift && !alt -> when (keyCode) {
         KeyEvent.KEYCODE_F5 -> KeyShortcut.Reload
         KeyEvent.KEYCODE_F6 -> KeyShortcut.FocusAddress
+        // A mouse's forward button. Its back button arrives as Back and needs nothing here.
+        KeyEvent.KEYCODE_FORWARD -> KeyShortcut.Forward
+        KeyEvent.KEYCODE_ESCAPE -> KeyShortcut.Escape
         else -> null
     }
     else -> null

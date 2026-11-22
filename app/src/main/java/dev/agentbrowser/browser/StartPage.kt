@@ -1,5 +1,6 @@
 package dev.agentbrowser.browser
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +41,8 @@ fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier
     val colors = MaterialTheme.colorScheme
     val shortcuts = bookmarks.take(8)
     Surface(color = colors.surface, modifier = modifier.fillMaxSize().clip(RoundedCornerShape(0.dp))) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 720.dp).fillMaxSize().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.weight(if (shortcuts.isEmpty()) 1f else 0.7f))
             Icon(
                 painterResource(R.drawable.ic_mark),
@@ -58,6 +60,7 @@ fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier
                 }
             }
             Spacer(Modifier.weight(1f))
+        }
         }
     }
 }

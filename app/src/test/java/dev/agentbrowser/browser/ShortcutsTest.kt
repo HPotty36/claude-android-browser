@@ -50,4 +50,10 @@ class ShortcutsTest {
         assertNull(key(KeyEvent.KEYCODE_C, ctrl = true))
         assertNull(key(KeyEvent.KEYCODE_V, ctrl = true))
     }
+
+    @Test fun escapeIsTheBrowsersUnlessThePageHasIt() = assertEquals(KeyShortcut.Escape, key(KeyEvent.KEYCODE_ESCAPE))
+
+    @Test fun theMouseForwardButtonGoesForward() = assertEquals(KeyShortcut.Forward, key(KeyEvent.KEYCODE_FORWARD))
+
+    @Test fun aHardReloadIsStillAReload() = assertEquals(KeyShortcut.Reload, key(KeyEvent.KEYCODE_R, ctrl = true, shift = true))
 }

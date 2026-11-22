@@ -1,5 +1,8 @@
 package dev.agentbrowser.ui
 
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.dp
 import dev.agentbrowser.ui.LocalStrings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
@@ -50,6 +53,9 @@ fun ScreenScaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) { content(snackbar) }
+        // On a monitor the lists stay a readable column in the middle.
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            Box(Modifier.widthIn(max = 720.dp).fillMaxSize()) { content(snackbar) }
+        }
     }
 }

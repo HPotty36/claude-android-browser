@@ -25,8 +25,8 @@ android {
         applicationId = "dev.agentbrowser"
         minSdk = 26
         targetSdk = 37
-        versionCode = 16
-        versionName = "0.8.2"
+        versionCode = 17
+        versionName = "0.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a") }
     }

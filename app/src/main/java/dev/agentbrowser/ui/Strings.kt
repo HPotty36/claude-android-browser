@@ -103,6 +103,18 @@ interface Strings {
     val desktopSiteNever: String
 
     // Protection
+    val translation: String
+    val autoTranslate: String
+    val autoTranslateNote: String
+    val translateTo: String
+    val translatePage: String
+    val showOriginal: String
+    val cancelTranslation: String
+    val translatedTapForOriginal: String
+    val translationFailed: String
+    val translateNeedsKey: String
+    val openInNewTab: String
+    val copyLink: String
     val protection: String
     val adBlock: String
     val adBlockNote: String
@@ -237,6 +249,18 @@ object En : Strings {
     override val desktopSiteAlways = "Always"
     override val desktopSiteNever = "Never"
 
+    override val translation = "Translation"
+    override val autoTranslate = "Translate pages by itself"
+    override val autoTranslateNote = "Text of pages that are in neither Korean nor English goes to the Anthropic API and comes back translated. It uses API credit. Sign-in pages are left alone."
+    override val translateTo = "Translate into"
+    override val translatePage = "Translate page"
+    override val showOriginal = "Show original"
+    override val cancelTranslation = "Cancel translation"
+    override val translatedTapForOriginal = "Translated. Show original"
+    override val translationFailed = "Translation failed. Try again"
+    override val translateNeedsKey = "Add an API key in Settings to translate"
+    override val openInNewTab = "Open in new tab"
+    override val copyLink = "Copy link"
     override val protection = "Protection"
     override val adBlock = "Block ads"
     override val adBlockNote = "uBlock Origin blocks ads and trackers"
@@ -372,6 +396,18 @@ object Ko : Strings {
     override val desktopSiteAlways = "항상"
     override val desktopSiteNever = "안 함"
 
+    override val translation = "번역"
+    override val autoTranslate = "페이지 자동 번역"
+    override val autoTranslateNote = "한국어도 영어도 아닌 페이지의 글을 Anthropic API로 보내 번역합니다. API 사용료가 들고, 로그인 페이지는 건드리지 않습니다."
+    override val translateTo = "번역할 언어"
+    override val translatePage = "페이지 번역"
+    override val showOriginal = "원문 보기"
+    override val cancelTranslation = "번역 취소"
+    override val translatedTapForOriginal = "번역됨. 원문 보기"
+    override val translationFailed = "번역하지 못했습니다. 다시 시도"
+    override val translateNeedsKey = "번역하려면 설정에서 API 키를 넣어 주세요"
+    override val openInNewTab = "새 탭에서 열기"
+    override val copyLink = "링크 복사"
     override val protection = "보호"
     override val adBlock = "광고 차단"
     override val adBlockNote = "uBlock Origin으로 광고와 추적기를 막습니다"
