@@ -1,5 +1,6 @@
 package dev.agentbrowser.browser
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,12 +38,21 @@ data class Shortcut(val title: String, val url: String)
  * any. Typing happens in the bar below.
  */
 @Composable
-fun StartPage(bookmarks: List<Shortcut>, onOpen: (url: String) -> Unit, modifier: Modifier = Modifier) {
+fun StartPage(
+    bookmarks: List<Shortcut>,
+    onOpen: (url: String) -> Unit,
+    modifier: Modifier = Modifier,
+    bottomInset: Dp = 0.dp,
+) {
     val colors = MaterialTheme.colorScheme
     val shortcuts = bookmarks.take(8)
     Surface(color = colors.surface, modifier = modifier.fillMaxSize().clip(RoundedCornerShape(0.dp))) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Column(Modifier.widthIn(max = 720.dp).fillMaxSize().padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        // The background runs under a floating bar; the mark and the bookmarks keep clear of it.
+        Column(
+            Modifier.widthIn(max = 720.dp).fillMaxSize().padding(horizontal = 28.dp).padding(bottom = bottomInset),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Spacer(Modifier.weight(if (shortcuts.isEmpty()) 1f else 0.7f))
             Icon(
                 painterResource(R.drawable.ic_mark),

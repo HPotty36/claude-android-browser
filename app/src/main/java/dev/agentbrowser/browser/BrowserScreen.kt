@@ -1,5 +1,9 @@
 package dev.agentbrowser.browser
 
+import dev.agentbrowser.chat.typedLineBreak
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.material.icons.outlined.Translate
@@ -262,7 +266,7 @@ fun BrowserScreen(
     val openSettings by rememberUpdatedState(onSettings)
     // One panel that moves between the bottom and the side, so what is typed in it survives the move.
     val panel = remember {
-        movableContentOf { panelModifier: Modifier, resizable: Boolean, suggestions: List<String> ->
+        movableContentOf { panelModifier: Modifier, resizable: Boolean, suggestions: List<String>, footInset: Dp ->
             ChatPanel(
                 model = chat,
                 expanded = chatExpanded,
@@ -296,20 +300,63 @@ fun BrowserScreen(
                 modifier = panelModifier,
                 beside = !resizable,
                 focusRequests = chatFocus,
+                bottomInset = footInset,
             )
         }
     }
     val suggestions = if (onStartPage) emptyList() else listOf(s.suggestSummary, s.suggestPrice)
+    // The bar's height, measured, so whatever it floats over can keep clear of it.
+    var barPx by remember { mutableIntStateOf(0) }
+    val bar = @Composable {
+        Box(Modifier.onSizeChanged { barPx = it.height }) {
+            CommandBar(
+                controller = controller,
+                searchUrl = searchUrl,
+                onStartPage = onStartPage,
+                chatOpen = chatOpen,
+                agentRunning = agentRunning,
+                isBookmarked = isBookmarked,
+                updateAvailable = updateAvailable,
+                addressEdit = addressEditState,
+                translation = translation,
+                onTranslate = { if (!onTranslate()) Toast.makeText(context, s.translateNeedsKey, Toast.LENGTH_SHORT).show() },
+                onShowOriginal = onShowOriginal,
+                onPageFocus = { pageView?.requestFocus() },
+                onClaude = { chatOpen = !chatOpen },
+                onToggleBookmark = onToggleBookmark,
+                onBookmarks = onBookmarks,
+                onSettings = onSettings,
+            )
+        }
+    }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         // A wide window (a monitor, a tablet, a phone on its side) keeps the page whole and puts Claude beside it.
         val side = panelBeside(maxWidth.value, maxHeight.value) && chatOpen && !chatExpanded
         val sideWidth = sidePanelWidth(maxWidth.value).dp
+        // Where the page column is wider than the bar, the bar floats over the page instead of taking a strip
+        // of its own, so nothing but the bar sits beside it.
+        val columnWidth = if (side) maxWidth - sideWidth else maxWidth
+        val floatBar = !fullChat && columnWidth > BAR_MAX_DP.dp
+        val barHeight = with(LocalDensity.current) { barPx.toDp() }
+        val bottomPanel = chatOpen && !side
+        val strip = agentRunning && !chatOpen
+        // The lowest thing in the column makes room for a floating bar; when that is the page, the page is told.
+        val pageAtFoot = !bottomPanel && !strip && pendingConfirm == null
+        val pageUnderBar = if (floatBar && pageAtFoot) barPx else 0
+        LaunchedEffect(pageView, pageUnderBar) {
+            pageView?.let { view ->
+                view.setDynamicToolbarMaxHeight(pageUnderBar)
+                view.setVerticalClipping(0)
+            }
+        }
+        val footInset = if (floatBar) barHeight else 0.dp
         Row(Modifier.fillMaxSize()) {
-            Column(Modifier.weight(1f).fillMaxHeight()) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+            Column(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxWidth().onSizeChanged { areaPx = it.height }) {
                     // While the panel is open the page keeps a sliver at least, so its view never loses its session.
-                    val pageWeight = if (chatOpen && !side) (1f - chatFraction).coerceAtLeast(0.05f) else 1f
+                    val pageWeight = if (bottomPanel) (1f - chatFraction).coerceAtLeast(0.05f) else 1f
                     Box(if (fullChat) Modifier.fillMaxWidth().height(0.dp) else Modifier.weight(pageWeight).fillMaxWidth()) {
                         AndroidView(
                             factory = { context ->
@@ -336,44 +383,32 @@ fun BrowserScreen(
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
-                        if (onStartPage) StartPage(shortcuts, onOpen = controller::load)
+                        val pageFoot = if (pageAtFoot) footInset else 0.dp
+                        if (onStartPage) StartPage(shortcuts, onOpen = controller::load, bottomInset = pageFoot)
                         // The page wears the accent while Claude has the controls.
                         if (agentRunning) Box(Modifier.fillMaxSize().border(2.dp, colors.primary))
                     }
                     // Always on screen while Claude waits for an answer, whether or not the chat panel is open.
                     pendingConfirm?.let { description ->
-                        ConfirmBar(description, onAnswer = chat::answerConfirm)
+                        ConfirmBar(
+                            description,
+                            onAnswer = chat::answerConfirm,
+                            bottomInset = if (!bottomPanel && !strip) footInset else 0.dp,
+                        )
                     }
-                    if (chatOpen && !side) {
-                        panel(Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)), true, suggestions)
-                    } else if (agentRunning && !chatOpen) {
-                        RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop)
+                    if (bottomPanel) {
+                        panel(Modifier.weight(if (fullChat) 1f else chatFraction.coerceIn(0.05f, 0.95f)), true, suggestions, footInset)
+                    } else if (strip) {
+                        RunningStrip(onOpen = { chatOpen = true }, onStop = chat::stop, modifier = Modifier.padding(bottom = footInset))
                     }
                 }
-                if (!fullChat) {
-                    CommandBar(
-                        controller = controller,
-                        searchUrl = searchUrl,
-                        onStartPage = onStartPage,
-                        chatOpen = chatOpen,
-                        agentRunning = agentRunning,
-                        isBookmarked = isBookmarked,
-                        updateAvailable = updateAvailable,
-                        addressEdit = addressEditState,
-                        translation = translation,
-                        onTranslate = { if (!onTranslate()) Toast.makeText(context, s.translateNeedsKey, Toast.LENGTH_SHORT).show() },
-                        onShowOriginal = onShowOriginal,
-                        onPageFocus = { pageView?.requestFocus() },
-                        onClaude = { chatOpen = !chatOpen },
-                        onToggleBookmark = onToggleBookmark,
-                        onBookmarks = onBookmarks,
-                        onSettings = onSettings,
-                    )
-                }
+                if (!fullChat && !floatBar) bar()
+            }
+            if (floatBar) Box(Modifier.align(Alignment.BottomCenter)) { bar() }
             }
             if (side) {
                 VerticalDivider(color = colors.outlineVariant)
-                panel(Modifier.width(sideWidth).fillMaxHeight(), false, suggestions)
+                panel(Modifier.width(sideWidth).fillMaxHeight(), false, suggestions, 0.dp)
             }
         }
     }
@@ -426,23 +461,34 @@ private fun CommandBar(
     ) {
         Column {
             val draft = editing
+            val go = { text: String ->
+                if (text.isNotBlank()) controller.load(toUrl(text, searchUrl))
+                focus.clearFocus()
+                editing = null
+                // The page takes the keyboard, so the arrows and the space bar scroll it straight away.
+                onPageFocus()
+            }
             if (draft != null) {
                 val requester = remember { FocusRequester() }
                 var hadFocus by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) { requester.requestFocus() }
                 PillField(
                     value = draft,
-                    onValueChange = { editing = it },
+                    onValueChange = { value ->
+                        // A keyboard app composing Korean answers a hardware Enter by typing a line break.
+                        val entered = typedLineBreak(draft.text, value.text, value.selection.start)
+                        when {
+                            entered != null -> go(entered)
+                            // Pasted lines become one: the address has no room for a line break.
+                            '\n' in value.text || '\r' in value.text ->
+                                editing = value.copy(text = value.text.map { if (it == '\n' || it == '\r') ' ' else it }.joinToString(""))
+                            else -> editing = value
+                        }
+                    },
                     placeholder = s.searchHint,
                     minHeight = 48.dp,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = {
-                        if (draft.text.isNotBlank()) controller.load(toUrl(draft.text, searchUrl))
-                        focus.clearFocus()
-                        editing = null
-                        // The page takes the keyboard, so the arrows and the space bar scroll it straight away.
-                        onPageFocus()
-                    }),
+                    keyboardActions = KeyboardActions(onGo = { go(draft.text) }),
                     modifier = Modifier.fillMaxWidth().padding(start = 4.dp).focusRequester(requester).onFocusChanged { state ->
                         if (state.isFocused) hadFocus = true else if (hadFocus) editing = null
                     },
@@ -673,13 +719,13 @@ private fun ClaudeOrb(active: Boolean, running: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RunningStrip(onOpen: () -> Unit, onStop: () -> Unit) {
+private fun RunningStrip(onOpen: () -> Unit, onStop: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val s = LocalStrings.current
     Surface(
         color = colors.primaryContainer,
         shape = RoundedCornerShape(22.dp),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 6.dp).height(44.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 6.dp).height(44.dp),
     ) {
         Row(
             Modifier.fillMaxSize().clickable(onClickLabel = s.openChat, onClick = onOpen).padding(start = 16.dp, end = 4.dp),

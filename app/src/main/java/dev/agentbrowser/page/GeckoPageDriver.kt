@@ -154,7 +154,8 @@ class GeckoPageDriver(
         val items = (call("collect") as? Reply.Result)?.json?.optJSONArray("items") ?: return emptyList()
         return (0 until items.length()).mapNotNull { index ->
             val item = items.optJSONObject(index) ?: return@mapNotNull null
-            TextItem(item.optInt("id"), item.optString("text"))
+            val id = item.optInt("id")
+            TextItem(id, item.optString("text"), item.optInt("block", -id))
         }
     }
 

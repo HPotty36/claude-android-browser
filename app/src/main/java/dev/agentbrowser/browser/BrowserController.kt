@@ -349,6 +349,12 @@ class BrowserController(
         return tab
     }
 
+    /** Opens a link another app handed over: in the current tab while that is blank, otherwise in a new one. */
+    fun openLink(url: String) {
+        val tab = _current.value
+        if (linkNeedsNewTab(tab.url.value, tab.pendingUrl)) newTab(url) else load(url)
+    }
+
     /** Opens [url] in a new tab and switches to it. */
     fun newTab(url: String = HOME_URL): Tab = addTab(GeckoSession(), url).also { _current.value = it }
 

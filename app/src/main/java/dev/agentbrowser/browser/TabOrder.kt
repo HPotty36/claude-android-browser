@@ -17,3 +17,10 @@ fun neighbourTab(ids: List<Long>, current: Long, step: Int): Long {
     if (index < 0 || ids.isEmpty()) return current
     return ids[Math.floorMod(index + step, ids.size)]
 }
+
+/**
+ * Whether a link handed over by another app needs a tab of its own: it does unless the current tab shows
+ * nothing yet and has nothing waiting to load ([waitingUrl], a link that came while the engine was starting).
+ */
+fun linkNeedsNewTab(shownUrl: String, waitingUrl: String?): Boolean =
+    waitingUrl != null || (shownUrl.isNotEmpty() && shownUrl != HOME_URL)

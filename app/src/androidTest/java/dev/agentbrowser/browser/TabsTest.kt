@@ -5,7 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.agentbrowser.App
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -37,6 +37,7 @@ class TabsTest {
             // Start every test from one blank tab.
             controller.tabs.value.drop(1).forEach { controller.close(it.id) }
         }
+        controller.settle(instrumentation)
     }
 
     @After fun stop() = server.shutdown()
@@ -44,7 +45,20 @@ class TabsTest {
     private fun onMain(block: () -> Unit) = instrumentation.runOnMainSync(block)
 
     private fun awaitSnapshotUrl(url: String) = runBlocking {
-        withTimeout(60_000) { while (controller.pageDriver.snapshot().url != url) delay(300) }
+        var last: String? = null
+        val done = withTimeoutOrNull(60_000) {
+            while (true) {
+                last = controller.pageDriver.snapshot().url
+                if (last == url) break
+                delay(300)
+            }
+        }
+        if (done == null) {
+            throw AssertionError(
+                "The page never read as $url: the driver last read $last, the tab shows ${controller.url.value}, " +
+                    "progress ${controller.progress.value}, ${controller.tabs.value.size} tabs",
+            )
+        }
     }
 
     @Test fun newTabBecomesCurrent() {

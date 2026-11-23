@@ -41,6 +41,7 @@ class DesktopSiteDeviceTest {
         server.start()
         val app = instrumentation.targetContext.applicationContext as App
         instrumentation.runOnMainSync { controller = app.browser }
+        controller.settle(instrumentation)
     }
 
     @After fun stop() {

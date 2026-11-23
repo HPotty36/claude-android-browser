@@ -46,6 +46,8 @@ class ExternalLinkDeviceTest {
 
     @After fun stop() {
         instrumentation.runOnMainSync { controller.dismissExternalLink() }
+        // The page of a redirect to an app is committed late; it must not land in the next test's page.
+        controller.settle(instrumentation)
         server.shutdown()
     }
 

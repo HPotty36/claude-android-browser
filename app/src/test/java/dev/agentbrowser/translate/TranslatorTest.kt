@@ -92,4 +92,51 @@ class TranslatorTest {
     fun aReplyThatCannotBeUsedIsAnError(): Unit = runBlocking {
         ClaudeTranslationClient { _, _ -> "I cannot do that" }.translate(listOf("one"), TranslateTarget.KOREAN)
     }
+
+    // A sentence cut by bold text or a link goes to the model whole, its pieces marked, and comes back split.
+    @Test fun piecesAreMarkedInOrder() = assertEquals("⟦1⟧a⟦2⟧b ⟦3⟧c", joinPieces(listOf("a", "b ", "c")))
+
+    @Test fun theSpacesTheTranslationPutsBetweenPiecesAreKept() = assertEquals(
+        listOf("우산을 챙겨 나가시면 ", "안심", "일 것입니다. ", "자세한 내용은 여기", "."),
+        splitPieces("⟦1⟧우산을 챙겨 나가시면 ⟦2⟧안심⟦3⟧일 것입니다. ⟦4⟧자세한 내용은 여기⟦5⟧.", count = 5),
+    )
+
+    @Test fun aReplyThatLostOrMovedAMarkerIsNotSplit() {
+        assertNull(splitPieces("⟦1⟧a⟦3⟧c", count = 3))
+        assertNull(splitPieces("⟦2⟧b⟦1⟧a", count = 2))
+        assertNull(splitPieces("⟦1⟧a⟦2⟧b⟦2⟧b", count = 2))
+        assertNull(splitPieces("a b", count = 2))
+    }
+
+    @Test fun piecesNextToEachOtherInOneBlockAreGrouped() {
+        val groups = groupByBlock(listOf(TextItem(1, "a", block = 7), TextItem(2, "b", block = 7), TextItem(3, "c", block = 8), TextItem(4, "d", block = 7)))
+        assertEquals(listOf(listOf(1, 2), listOf(3), listOf(4)), groups.map { group -> group.map { it.id } })
+    }
+
+    private class UpperClient : TranslationClient {
+        val calls = mutableListOf<List<String>>()
+        var breakMarkers = false
+        override suspend fun translate(texts: List<String>, target: TranslateTarget): List<String> {
+            calls += texts
+            return texts.map { text -> if (breakMarkers && '⟦' in text) text.replace("⟦", "[").uppercase() else text.uppercase() }
+        }
+    }
+
+    @Test fun aBlockGoesAsOneStringAndComesBackInItsPieces() = runBlocking {
+        val page = FakePage(listOf(TextItem(1, "one ", block = 5), TextItem(2, "two", block = 5), TextItem(3, "three", block = 6)))
+        val client = UpperClient()
+        val result = Translator(client).translate(page, TranslateTarget.KOREAN)
+        assertEquals(listOf(listOf("⟦1⟧one ⟦2⟧two", "three")), client.calls)
+        assertEquals(mapOf(1 to "ONE ", 2 to "TWO", 3 to "THREE"), page.applied)
+        assertEquals(TranslationResult(translated = 3, total = 3), result)
+    }
+
+    @Test fun aBlockWhoseMarkersCameBackBrokenIsAskedAgainPieceByPiece() = runBlocking {
+        val page = FakePage(listOf(TextItem(1, "one", block = 5), TextItem(2, "two", block = 5)))
+        val client = UpperClient().apply { breakMarkers = true }
+        val result = Translator(client).translate(page, TranslateTarget.KOREAN)
+        assertEquals(listOf(listOf("⟦1⟧one⟦2⟧two"), listOf("one", "two")), client.calls)
+        assertEquals(mapOf(1 to "ONE", 2 to "TWO"), page.applied)
+        assertEquals(TranslationResult(translated = 2, total = 2), result)
+    }
 }

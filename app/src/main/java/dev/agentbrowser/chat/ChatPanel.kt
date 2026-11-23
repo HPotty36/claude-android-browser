@@ -1,5 +1,8 @@
 package dev.agentbrowser.chat
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import android.view.KeyCharacterMap
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.runtime.remember
@@ -89,6 +92,7 @@ fun ChatPanel(
     modifier: Modifier = Modifier,
     beside: Boolean = false,
     focusRequests: ReceiveChannel<Unit>? = null,
+    bottomInset: Dp = 0.dp,
 ) {
     val items by model.items.collectAsState()
     val running by model.running.collectAsState()
@@ -104,6 +108,10 @@ fun ChatPanel(
     LaunchedEffect(focusRequests) {
         if (focusRequests != null) for (request in focusRequests) runCatching { inputFocus.requestFocus() }
     }
+    // A keyboard plugged in (USB, Bluetooth, a dock): Enter sends, Shift+Enter breaks the line.
+    val configuration = LocalConfiguration.current
+    val hardwareKeyboard = configuration.keyboard == Configuration.KEYBOARD_QWERTY
+    var shiftHeld by remember { mutableStateOf(false) }
     val submit = {
         // While Claude works the model takes nothing, so the draft stays for later.
         if (!running && draft.text.isNotBlank()) {
@@ -205,18 +213,34 @@ fun ChatPanel(
                 }
             }
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                // A bar floating over the panel's foot must not cover the message box.
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).padding(bottom = bottomInset),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 PillField(
                     value = draft,
-                    onValueChange = { draft = it },
+                    onValueChange = { value ->
+                        // With a keyboard plugged in, Enter sends even when the keyboard app turned it into a line break.
+                        val typed = if (hardwareKeyboard && !shiftHeld) {
+                            typedLineBreak(draft.text, value.text, value.selection.start).takeIf { value.selection.collapsed }
+                        } else {
+                            null
+                        }
+                        if (typed != null) {
+                            draft = TextFieldValue(typed, TextRange(value.selection.start - 1))
+                            submit()
+                        } else {
+                            draft = value
+                        }
+                    },
                     placeholder = s.taskHint,
                     minHeight = 44.dp,
                     singleLine = false,
                     maxLines = 4,
                     modifier = Modifier.weight(1f).focusRequester(inputFocus).onPreviewKeyEvent { event ->
                         val key = event.nativeKeyEvent
+                        // Shift+Enter reaches the keyboard app, not here; its Shift does, and says a line break is wanted.
+                        shiftHeld = key.isShiftPressed
                         // An on-screen keyboard's Enter stays a line break: there the button sends.
                         val hardware = key.deviceId != KeyCharacterMap.VIRTUAL_KEYBOARD
                         val down = key.action == AndroidKeyEvent.ACTION_DOWN
@@ -267,13 +291,13 @@ fun ChatPanel(
 
 /** Asks before a risky action. Shown by the browser screen so it stays visible with the panel closed. */
 @Composable
-fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit) {
+fun ConfirmBar(description: String, onAnswer: (approved: Boolean) -> Unit, bottomInset: Dp = 0.dp) {
     val colors = MaterialTheme.colorScheme
     val s = LocalStrings.current
     Surface(color = colors.surfaceContainerHighest) {
         Column {
             HorizontalDivider(color = colors.outlineVariant)
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp).padding(bottom = bottomInset)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.error, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))

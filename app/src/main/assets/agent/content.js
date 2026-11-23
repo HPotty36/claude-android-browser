@@ -1,4 +1,6 @@
 // Runs in every top-level page. The app sends {id, cmd, args} over a native port and gets {id, result} back.
+// Raise "version" in manifest.json with every change to this file: the engine keeps an installed copy of a
+// built-in extension, and an app update reaches it only when that version changes.
 (() => {
   if (window.top !== window) return;
 
@@ -163,12 +165,26 @@
     "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME",
   ]);
   let pieces = new Map(); // id -> { node, original, translated }
+  let blocks = new WeakMap(); // block element -> number, so runs of one paragraph can be sent together
+  let nextBlock = 1;
+
+  function blockOf(el) {
+    for (let e = el; e; e = e.parentElement) {
+      const display = getComputedStyle(e).display;
+      if (display.startsWith("inline") || display === "contents") continue;
+      if (!blocks.has(e)) blocks.set(e, nextBlock++);
+      return blocks.get(e);
+    }
+    return 0;
+  }
   let nextPiece = 1;
   let translatedNodes = new WeakSet();
 
   function translatable(node) {
     const text = node.nodeValue;
-    if (!text || text.trim().length < 2 || !/\p{L}/u.test(text)) return false;
+    const trimmed = text ? text.trim() : "";
+    // Words, or East Asian punctuation on its own (a full stop after a link), which has its own form elsewhere.
+    if (!trimmed || !(/\p{L}/u.test(trimmed) || /^[\u3000-\u303f\uff01-\uff60]+$/u.test(trimmed))) return false;
     const parent = node.parentElement;
     if (!parent) return false;
     for (let el = parent; el; el = el.parentElement) {
@@ -199,7 +215,7 @@
       chars += text.length;
       const id = nextPiece++;
       pieces.set(id, { node, original: text, translated: false });
-      items.push({ id, text });
+      items.push({ id, text, block: blockOf(node.parentElement) });
     }
     return { items };
   }
@@ -208,9 +224,10 @@
     for (const item of args.items || []) {
       const piece = pieces.get(item.id);
       if (!piece || !piece.node.isConnected || typeof item.text !== "string") continue;
-      // The spaces around a piece hold the sentence together with its neighbours; keep them.
-      const lead = piece.original.match(/^\s*/)[0];
-      const trail = piece.original.match(/\s*$/)[0];
+      // The spaces around a piece hold the sentence together with its neighbours; keep them. A language written
+      // without spaces has none to keep, so a space the translation asks for at either end is kept instead.
+      const lead = piece.original.match(/^\s*/)[0] || (/^\s/.test(item.text) ? " " : "");
+      const trail = piece.original.match(/\s*$/)[0] || (/\s$/.test(item.text) ? " " : "");
       piece.node.nodeValue = lead + item.text.trim() + trail;
       piece.translated = true;
       translatedNodes.add(piece.node);
