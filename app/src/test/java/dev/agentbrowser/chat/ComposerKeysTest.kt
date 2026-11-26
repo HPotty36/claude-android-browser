@@ -20,12 +20,19 @@ class ComposerKeysTest {
     @Test fun aBackwardsSelectionIsReplacedToo() = assertEquals("a\nd" to 2, withNewLine("abcd", 3, 1))
 
     // A keyboard app composing Korean takes a hardware Enter itself and types a line break instead.
-    @Test fun aLineBreakTypedAtTheEndIsAnEnter() = assertEquals("안녕", typedLineBreak("안녕", "안녕\n", cursor = 3))
-    @Test fun theLastSyllableCommittedWithTheBreakIsKept() = assertEquals("안녕", typedLineBreak("안녀", "안녕\n", cursor = 3))
-    @Test fun aLineBreakInTheMiddleIsAnEnterToo() = assertEquals("ab", typedLineBreak("ab", "a\nb", cursor = 2))
-    @Test fun earlierLineBreaksStay() = assertEquals("a\nb", typedLineBreak("a\nb", "a\nb\n", cursor = 4))
-    @Test fun typingALetterIsNotAnEnter() = assertNull(typedLineBreak("ab", "abc", cursor = 3))
-    @Test fun typingAfterALineBreakIsNotAnEnter() = assertNull(typedLineBreak("a\n", "a\nb", cursor = 3))
-    @Test fun deletingALineBreakIsNotAnEnter() = assertNull(typedLineBreak("a\nb", "ab", cursor = 1))
-    @Test fun pastingTwoLinesIsNotAnEnter() = assertNull(typedLineBreak("", "x\ny", cursor = 3))
+    @Test fun aLineBreakTypedAtTheEndIsAnEnter() = assertEquals("안녕", typedLineBreak("안녕", null, "안녕\n", cursor = 3))
+    @Test fun theLastSyllableCommittedWithTheBreakIsKept() = assertEquals("안녕", typedLineBreak("안녀", 1 until 2, "안녕\n", cursor = 3))
+    @Test fun aLineBreakInTheMiddleIsAnEnterToo() = assertEquals("ab", typedLineBreak("ab", null, "a\nb", cursor = 2))
+    @Test fun earlierLineBreaksStay() = assertEquals("a\nb", typedLineBreak("a\nb", null, "a\nb\n", cursor = 4))
+    @Test fun typingALetterIsNotAnEnter() = assertNull(typedLineBreak("ab", null, "abc", cursor = 3))
+    @Test fun typingAfterALineBreakIsNotAnEnter() = assertNull(typedLineBreak("a\n", null, "a\nb", cursor = 3))
+    @Test fun deletingALineBreakIsNotAnEnter() = assertNull(typedLineBreak("a\nb", null, "ab", cursor = 1))
+    @Test fun pastingTwoLinesIsNotAnEnter() = assertNull(typedLineBreak("", null, "x\ny", cursor = 3))
+
+    // A paste that happens to end in a line break is not an Enter: only the break, or a syllable being committed
+    // together with it, may be new.
+    @Test fun pastingALineThatEndsInABreakIsNotAnEnter() = assertNull(typedLineBreak("ab", null, "abxyz\n", cursor = 6))
+    @Test fun pastingIntoAnEmptyBoxIsNotAnEnter() = assertNull(typedLineBreak("", null, "hello\n", cursor = 6))
+    @Test fun moreThanTheComposingSyllableChangingIsAPaste() =
+        assertNull(typedLineBreak("안녀", 1 until 2, "안녕하세요\n", cursor = 6))
 }

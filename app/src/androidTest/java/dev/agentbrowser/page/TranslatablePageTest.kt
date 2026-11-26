@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.agentbrowser.App
 import dev.agentbrowser.browser.BrowserController
 import dev.agentbrowser.translate.TextItem
+import dev.agentbrowser.translate.TranslationState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -74,5 +75,13 @@ class TranslatablePageTest {
         driver.apply(items.mapIndexed { index, item -> TextItem(item.id, korean[index]) })
         val text = controller.pageDriver.snapshot().text
         assertTrue(text, "우산을 챙겨 나가시면 안심일 것입니다. 자세한 내용은 여기." in text)
+    }
+
+    // Reloading brings the page back in its own language, so it must not still be shown as translated.
+    @Test fun aReloadedPageIsNoLongerShownAsTranslated() = runBlocking {
+        val tab = controller.current.value
+        instrumentation.runOnMainSync { tab.setTranslation(TranslationState.Translated) }
+        instrumentation.runOnMainSync { controller.reload() }
+        withTimeout(20_000) { while (tab.translation.value != TranslationState.Off) delay(200) }
     }
 }

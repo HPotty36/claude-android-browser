@@ -168,30 +168,56 @@
   let blocks = new WeakMap(); // block element -> number, so runs of one paragraph can be sent together
   let nextBlock = 1;
 
-  function blockOf(el) {
+  // A page's text nodes share their ancestors, so one collect asks about each element once: [seen] keeps the
+  // answers for that collect only, since the page can change between two.
+  function blockOf(el, seen) {
+    const passed = [];
+    let block = 0;
     for (let e = el; e; e = e.parentElement) {
+      const known = seen.get(e);
+      if (known !== undefined) {
+        block = known;
+        break;
+      }
+      passed.push(e);
       const display = getComputedStyle(e).display;
       if (display.startsWith("inline") || display === "contents") continue;
       if (!blocks.has(e)) blocks.set(e, nextBlock++);
-      return blocks.get(e);
+      block = blocks.get(e);
+      break;
     }
-    return 0;
+    for (const e of passed) seen.set(e, block);
+    return block;
   }
   let nextPiece = 1;
   let translatedNodes = new WeakSet();
 
-  function translatable(node) {
+  // Whether text inside [el] is left as it is: code, form fields, editable text, or marked not to translate.
+  function excluded(el, seen) {
+    if (!el) return false;
+    let known = seen.get(el);
+    if (known === undefined) {
+      known = UNTRANSLATED.has(el.tagName.toUpperCase()) || el.isContentEditable ||
+        el.getAttribute("translate") === "no" || el.classList.contains("notranslate") ||
+        excluded(el.parentElement, seen);
+      seen.set(el, known);
+    }
+    return known;
+  }
+
+  function translatable(node, seen) {
     const text = node.nodeValue;
     const trimmed = text ? text.trim() : "";
     // Words, or East Asian punctuation on its own (a full stop after a link), which has its own form elsewhere.
     if (!trimmed || !(/\p{L}/u.test(trimmed) || /^[\u3000-\u303f\uff01-\uff60]+$/u.test(trimmed))) return false;
     const parent = node.parentElement;
-    if (!parent) return false;
-    for (let el = parent; el; el = el.parentElement) {
-      if (UNTRANSLATED.has(el.tagName.toUpperCase()) || el.isContentEditable) return false;
-      if (el.getAttribute("translate") === "no" || el.classList.contains("notranslate")) return false;
+    if (!parent || excluded(parent, seen.excluded)) return false;
+    let shown = seen.visible.get(parent);
+    if (shown === undefined) {
+      shown = visible(parent);
+      seen.visible.set(parent, shown);
     }
-    return visible(parent);
+    return shown;
   }
 
   function language() {
@@ -206,16 +232,17 @@
     const items = [];
     if (!document.body) return { items };
     let chars = 0;
+    const seen = { excluded: new Map(), visible: new Map(), block: new Map() };
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let node;
     while ((node = walker.nextNode())) {
-      if (translatedNodes.has(node) || !translatable(node)) continue;
+      if (translatedNodes.has(node) || !translatable(node, seen)) continue;
       const text = node.nodeValue;
       if (chars + text.length > MAX_TRANSLATE_CHARS) break;
       chars += text.length;
       const id = nextPiece++;
       pieces.set(id, { node, original: text, translated: false });
-      items.push({ id, text, block: blockOf(node.parentElement) });
+      items.push({ id, text, block: blockOf(node.parentElement, seen.block) });
     }
     return { items };
   }

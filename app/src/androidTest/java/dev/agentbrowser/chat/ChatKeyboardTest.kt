@@ -97,4 +97,16 @@ class ChatKeyboardTest {
         Thread.sleep(1_000)
         assertTrue("An on-screen Enter sent ${sent()}", sent().isEmpty())
     }
+
+    // Some phones keep the on-screen keyboard up beside a plugged-in one. A line break that no plugged-in Enter
+    // typed (here, keys sent as the on-screen keyboard's) stays a line break, as it does everywhere else.
+    @Test fun aLineBreakFromTheOnScreenKeyboardBesideAPluggedInOneBreaksTheLine() = withBrowser {
+        VirtualKeyboard().use { keyboard ->
+            keyboard.press("KEY_J", CTRL)
+            Thread.sleep(1_500)
+            instrumentation.sendStringSync("hi\n")
+            Thread.sleep(1_000)
+            assertTrue("The on-screen Enter sent ${sent()}", sent().isEmpty())
+        }
+    }
 }

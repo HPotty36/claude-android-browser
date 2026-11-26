@@ -44,7 +44,7 @@ On a desktop you can hand browser work to Claude. On a phone there has been no g
 | **Ad blocking** | uBlock Origin is built in and on by default; a switch in settings turns it off. |
 | **Encrypted DNS** | Site lookups go over HTTPS (Cloudflare) by default, which gets past DNS-based blocking. Sites that support ECH also hide their name while connecting. |
 | **Desktop site** | Tablets, unfolded foldables and external displays get the desktop version of pages; phones get the mobile one. Settings can force either. |
-| **Translation** | Pages that are in neither Korean nor English are translated into Korean by themselves, through the Anthropic API (Claude Haiku). ⋮ → Translate page does it for any page, and the icon in the address bar brings the original back. Settings can turn the automatic part off or translate into English instead. |
+| **Translation** | Pages that are in neither Korean nor English are translated into Korean by themselves, through the Anthropic API (Claude Haiku). ⋮ → Translate page does it for any page, and the icon in the address bar brings the original back. A red icon means some of the text could not be translated; tap it to try that part again. Settings can turn the automatic part off or translate into English instead. |
 | **Keyboard and wide windows** | With a keyboard attached: Ctrl+L address, Ctrl+T / Ctrl+W new and close tab, Ctrl+Tab switch tab, Ctrl+R or F5 reload, Alt+← / Alt+→ back and forward, Ctrl+D bookmark, Ctrl+J Claude (the cursor lands in its message box), Esc cancels. In the message box Enter sends and Shift+Enter starts a new line. Right-click a link to open it in a new tab or copy it. On a window wider than it is tall (a monitor, a tablet, a phone on its side) Claude sits beside the page. Where the window is wider than the bottom bar, the bar floats over the page instead of taking a strip of its own; the page still scrolls clear of it. |
 | **Hands off to apps** | A link meant for an app, such as a sign-in returning to its app or a payment app, asks before it opens there. |
 | **Google sign-in** | Built on the Firefox engine (GeckoView), so the Google sign-in that WebView apps are refused works. |
@@ -201,7 +201,7 @@ JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<path> -Djava.io.tmpdir=<path>
 | **광고 차단** | uBlock Origin이 내장돼 기본으로 켜져 있고, 설정에서 끌 수 있습니다. |
 | **암호화 DNS** | 주소 조회를 기본으로 HTTPS(Cloudflare)로 보내 DNS 차단을 지나갑니다. ECH를 지원하는 사이트는 접속할 때 이름도 가려집니다. |
 | **데스크톱 사이트** | 태블릿, 펼친 폴더블, 외부 디스플레이에서는 데스크톱 버전으로, 폰에서는 모바일 버전으로 엽니다. 설정에서 한쪽으로 고정할 수 있습니다. |
-| **번역** | 한국어도 영어도 아닌 페이지는 Anthropic API(Claude Haiku)로 알아서 한국어로 번역합니다. ⋮ → 페이지 번역으로 어느 페이지든 번역할 수 있고, 주소창의 아이콘을 누르면 원문으로 돌아갑니다. 설정에서 자동 번역을 끄거나 영어로 번역하게 바꿀 수 있습니다. |
+| **번역** | 한국어도 영어도 아닌 페이지는 Anthropic API(Claude Haiku)로 알아서 한국어로 번역합니다. ⋮ → 페이지 번역으로 어느 페이지든 번역할 수 있고, 주소창의 아이콘을 누르면 원문으로 돌아갑니다. 아이콘이 빨간색이면 일부를 번역하지 못한 것이고, 누르면 그 부분만 다시 시도합니다. 설정에서 자동 번역을 끄거나 영어로 번역하게 바꿀 수 있습니다. |
 | **키보드와 넓은 창** | 키보드를 연결하면 Ctrl+L 주소창, Ctrl+T / Ctrl+W 새 탭과 탭 닫기, Ctrl+Tab 탭 전환, Ctrl+R 또는 F5 새로고침, Alt+← / Alt+→ 뒤로와 앞으로, Ctrl+D 북마크, Ctrl+J Claude(커서가 입력창으로 갑니다), Esc 취소를 씁니다. Claude 입력창에서는 Enter로 보내고 Shift+Enter로 줄을 바꿉니다. 링크를 오른쪽 클릭하면 새 탭에서 열거나 주소를 복사합니다. 가로가 세로보다 긴 창(모니터, 태블릿, 가로로 돌린 폰)에서는 Claude 패널이 페이지 옆에 놓입니다. 창이 하단 바보다 넓으면 바가 따로 띠를 차지하지 않고 페이지 위에 떠 있고, 페이지는 끝까지 내리면 바에 가리지 않게 올라옵니다. |
 | **앱으로 넘기기** | 로그인 후 앱으로 돌아가는 링크나 결제 앱 링크처럼 다른 앱을 여는 링크는 확인을 받고 그 앱에서 엽니다. |
 | **구글 로그인** | 파이어폭스 엔진(GeckoView)을 써서 WebView 앱에서 막히는 구글 로그인이 됩니다. |

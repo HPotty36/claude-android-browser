@@ -30,13 +30,15 @@ class HttpClaudeClient(
     private val model: () -> String,
     private val baseUrl: String = "https://api.anthropic.com",
     private val http: OkHttpClient = OkHttpClient.Builder().readTimeout(120, TimeUnit.SECONDS).build(),
+    /** The longest reply asked for, in tokens. */
+    private val maxTokens: Int = MAX_TOKENS,
 ) : ClaudeClient {
 
     override suspend fun send(system: String, messages: List<Message>, tools: List<ToolDef>): ClaudeReply {
         val key = apiKey()?.takeIf { it.isNotBlank() } ?: throw ClaudeError.Auth()
         val body = buildJsonObject {
             put("model", model())
-            put("max_tokens", MAX_TOKENS)
+            put("max_tokens", maxTokens)
             put("system", system)
             put("messages", buildJsonArray { messages.forEach { add(encodeMessage(it)) } })
             if (tools.isNotEmpty()) put("tools", buildJsonArray { tools.forEach { add(encodeTool(it)) } })

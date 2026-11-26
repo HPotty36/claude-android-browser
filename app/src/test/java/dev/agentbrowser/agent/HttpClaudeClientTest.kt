@@ -105,4 +105,11 @@ class HttpClaudeClientTest {
         assertEquals(529, error.status)
         assertEquals("Overloaded", error.message)
     }
+
+    @Test fun theReplySizeLimitCanBeRaised() = runBlocking {
+        server.enqueue(ok(textReply))
+        HttpClaudeClient({ "sk-test" }, { "m" }, server.url("/").toString().trimEnd('/'), maxTokens = 8_192)
+            .send("s", userText("x"), emptyList())
+        assertEquals(8_192, sentBody()["max_tokens"]!!.jsonPrimitive.int)
+    }
 }

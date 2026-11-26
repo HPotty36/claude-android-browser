@@ -269,10 +269,8 @@ class BrowserController(
                 perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
                 hasUserGesture: Boolean,
             ) {
-                val previous = tab._url.value
+                // A page that changes its address as it scrolls keeps its text, so its translation stays.
                 tab._url.value = url.orEmpty()
-                // A jump within the page keeps its text; anything else is another page.
-                if (previous.substringBefore('#') != url.orEmpty().substringBefore('#')) tab.forgetTranslation()
             }
 
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
@@ -313,6 +311,11 @@ class BrowserController(
             }
         }
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
+            // A new document, a reload too, arrives in its own language.
+            override fun onPageStart(session: GeckoSession, url: String) {
+                tab.forgetTranslation()
+            }
+
             override fun onProgressChange(session: GeckoSession, progress: Int) {
                 tab._progress.value = progress
             }
@@ -335,7 +338,7 @@ class BrowserController(
                 element: GeckoSession.ContentDelegate.ContextElement,
             ) {
                 val link = element.linkUri
-                if (link != null && isWebAddress(link)) _contextLink.value = link
+                if (link != null && isHttpLink(link)) _contextLink.value = link
             }
         }
         session.promptDelegate = promptDelegate

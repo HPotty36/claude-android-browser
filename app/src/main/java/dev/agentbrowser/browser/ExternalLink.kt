@@ -12,6 +12,12 @@ private fun schemeOf(uri: String): String? = SCHEME.find(uri.trim())?.groupValue
 fun isWebAddress(uri: String): Boolean = schemeOf(uri)?.let { it in ENGINE_SCHEMES } ?: true
 
 /**
+ * Whether a link is an ordinary web page. Only those are offered in the link menu: a page's links to file:,
+ * resource: or javascript: addresses are not to be opened or copied from there with the app's own rights.
+ */
+fun isHttpLink(uri: String): Boolean = schemeOf(uri).let { it == "http" || it == "https" }
+
+/**
  * What to show when asking whether to leave for an app: the app an intent link names, or the link's scheme and
  * host. The rest of the link is left out, since a sign-in hands its code back in it.
  */

@@ -11,7 +11,20 @@ sealed interface TranslationState {
     /** [done] of [total] requests have come back; both are 0 while the page is still being read. */
     data class Working(val done: Int, val total: Int) : TranslationState
     data object Translated : TranslationState
+    /** Translated, except [missed] pieces whose requests failed; asking again translates just those. */
+    data class PartlyTranslated(val missed: Int) : TranslationState
     data object Failed : TranslationState
+}
+
+/** Where a tab stands after a run that ended with [result], when it stood at [before] as the run began. */
+fun translationOutcome(before: TranslationState, result: TranslationResult): TranslationState {
+    val shown = before == TranslationState.Translated || before is TranslationState.PartlyTranslated
+    return when {
+        result.total == 0 -> if (shown) TranslationState.Translated else TranslationState.Off
+        result.translated == result.total -> TranslationState.Translated
+        result.translated == 0 && !shown -> TranslationState.Failed
+        else -> TranslationState.PartlyTranslated(missed = result.total - result.translated)
+    }
 }
 
 /** Translates tabs: by itself when a page opens in a foreign language, or when asked. */
@@ -51,20 +64,18 @@ class PageTranslations(
     }
 
     private suspend fun run(tab: Tab) {
+        val before = tab.translation.value
         tab.setTranslation(TranslationState.Working(0, 0))
         val state = try {
             val result = translator.translate(tab.driver, target()) { done, total ->
                 tab.setTranslation(TranslationState.Working(done, total))
             }
-            when {
-                result.total == 0 -> TranslationState.Off
-                result.translated == 0 -> TranslationState.Failed
-                else -> TranslationState.Translated
-            }
+            translationOutcome(before, result)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            TranslationState.Failed
+            // The page could not be read: what an earlier run put on it is still there.
+            if (before is TranslationState.PartlyTranslated) before else TranslationState.Failed
         }
         tab.setTranslation(state)
     }

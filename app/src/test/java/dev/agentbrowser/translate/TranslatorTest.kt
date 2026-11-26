@@ -1,5 +1,6 @@
 package dev.agentbrowser.translate
 
+import dev.agentbrowser.agent.ClaudeError
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -58,14 +59,14 @@ class TranslatorTest {
 
     @Test fun aChunkThatFailsLeavesItsPiecesAsTheyWere() = runBlocking {
         val page = FakePage(items("one", "two", "three"))
-        val result = Translator(FakeClient(fail = { "two" in it }), maxChunkChars = 3).translate(page, TranslateTarget.ENGLISH)
+        val result = Translator(FakeClient(fail = { "two" in it }), maxChunkChars = 5).translate(page, TranslateTarget.ENGLISH)
         assertEquals(mapOf(1 to "<one>", 3 to "<three>"), page.applied)
         assertEquals(TranslationResult(translated = 2, total = 3), result)
     }
 
     @Test fun progressIsReportedAsChunksFinish() = runBlocking {
         val seen = mutableListOf<Pair<Int, Int>>()
-        Translator(FakeClient(), maxChunkChars = 3, parallel = 1)
+        Translator(FakeClient(), maxChunkChars = 5, parallel = 1)
             .translate(FakePage(items("one", "two", "three")), TranslateTarget.KOREAN) { done, total -> seen += done to total }
         assertEquals(listOf(1 to 3, 2 to 3, 3 to 3), seen)
     }
@@ -88,7 +89,7 @@ class TranslatorTest {
         assertEquals("""["one","two \"q\""]""", sent.single().second)
     }
 
-    @Test(expected = IllegalStateException::class)
+    @Test(expected = UnreadableTranslation::class)
     fun aReplyThatCannotBeUsedIsAnError(): Unit = runBlocking {
         ClaudeTranslationClient { _, _ -> "I cannot do that" }.translate(listOf("one"), TranslateTarget.KOREAN)
     }
@@ -138,5 +139,95 @@ class TranslatorTest {
         assertEquals(listOf(listOf("⟦1⟧one⟦2⟧two"), listOf("one", "two")), client.calls)
         assertEquals(mapOf(1 to "ONE", 2 to "TWO"), page.applied)
         assertEquals(TranslationResult(translated = 2, total = 2), result)
+    }
+
+    // Long text never goes out in one request bigger than a chunk: the reply could be cut off at its size limit.
+    @Test fun longTextIsCutAtSentenceEnds() {
+        assertEquals(listOf("One. ", "Two. ", "Three."), splitLongText("One. Two. Three.", maxChars = 6))
+        assertEquals(listOf("一文。", "二文。"), splitLongText("一文。二文。", maxChars = 3))
+        assertEquals(listOf("abc", "def", "gh"), splitLongText("abcdefgh", maxChars = 3))
+        assertEquals(listOf("short"), splitLongText("short", maxChars = 10))
+    }
+
+    @Test fun aParagraphLongerThanAChunkGoesInParts() = runBlocking {
+        val (a, b, c) = listOf("a", "b", "c").map { it.repeat(1_000) }
+        val page = FakePage(listOf(TextItem(1, a, block = 5), TextItem(2, b, block = 5), TextItem(3, c, block = 5)))
+        val client = UpperClient()
+        Translator(client, maxChunkChars = 2_500).translate(page, TranslateTarget.KOREAN)
+        assertTrue(client.calls.flatten().all { it.length <= 2_500 })
+        assertEquals(mapOf(1 to a.uppercase(), 2 to b.uppercase(), 3 to c.uppercase()), page.applied)
+    }
+
+    @Test fun aRunLongerThanAChunkIsTranslatedASentenceAtATimeAndPutBackWhole() = runBlocking {
+        val page = FakePage(listOf(TextItem(1, "One. Two. Three.")))
+        val client = UpperClient()
+        val result = Translator(client, maxChunkChars = 6).translate(page, TranslateTarget.KOREAN)
+        assertTrue(client.calls.flatten().all { it.length <= 6 })
+        assertEquals(mapOf(1 to "ONE. TWO. THREE."), page.applied)
+        assertEquals(TranslationResult(translated = 1, total = 1), result)
+    }
+
+    private class PickyClient(val reads: (List<String>) -> Boolean, val error: () -> Exception) : TranslationClient {
+        val calls = mutableListOf<List<String>>()
+        override suspend fun translate(texts: List<String>, target: TranslateTarget): List<String> {
+            calls += texts
+            if (!reads(texts)) throw error()
+            return texts.map { it.uppercase() }
+        }
+    }
+
+    // A reply cut off by its size limit cannot be read: the request is split in two and each half asked again.
+    @Test fun anUnreadableReplyIsAskedForAgainInHalves() = runBlocking {
+        val page = FakePage(items("a", "b", "c", "d"))
+        val client = PickyClient(reads = { it.size == 1 }, error = { UnreadableTranslation() })
+        val result = Translator(client, parallel = 1).translate(page, TranslateTarget.KOREAN)
+        assertEquals(mapOf(1 to "A", 2 to "B", 3 to "C", 4 to "D"), page.applied)
+        assertEquals(TranslationResult(translated = 4, total = 4), result)
+        assertEquals(listOf(4, 2, 1, 1, 2, 1, 1), client.calls.map { it.size })
+    }
+
+    // A refused key or a dropped connection fails the same way however small the request: no asking again.
+    @Test fun aFailedRequestIsNotAskedForAgain() = runBlocking {
+        val page = FakePage(items("a", "b", "c", "d"))
+        val client = PickyClient(reads = { false }, error = { IllegalStateException("network") })
+        val result = Translator(client).translate(page, TranslateTarget.KOREAN)
+        assertEquals(1, client.calls.size)
+        assertEquals(TranslationResult(translated = 0, total = 4), result)
+    }
+
+    // What the address bar shows once a translation run ends.
+    @Test fun aRunThatTranslatedEverythingIsTranslated() =
+        assertEquals(TranslationState.Translated, translationOutcome(TranslationState.Off, TranslationResult(3, 3)))
+    @Test fun aRunThatMissedSomeSaysHowMany() =
+        assertEquals(TranslationState.PartlyTranslated(missed = 2), translationOutcome(TranslationState.Off, TranslationResult(1, 3)))
+    @Test fun aRunThatTranslatedNothingFailed() =
+        assertEquals(TranslationState.Failed, translationOutcome(TranslationState.Off, TranslationResult(0, 3)))
+    @Test fun aPageWithNothingToTranslateStaysAsItWas() =
+        assertEquals(TranslationState.Off, translationOutcome(TranslationState.Off, TranslationResult(0, 0)))
+    @Test fun tryingAgainWithNothingLeftLeavesThePageTranslated() =
+        assertEquals(TranslationState.Translated, translationOutcome(TranslationState.PartlyTranslated(2), TranslationResult(0, 0)))
+    @Test fun tryingAgainAndFailingKeepsWhatWasTranslated() = assertEquals(
+        TranslationState.PartlyTranslated(missed = 2),
+        translationOutcome(TranslationState.PartlyTranslated(2), TranslationResult(0, 2)),
+    )
+
+    // A retired translation model is replaced by the chat model rather than failing every page from then on.
+    @Test fun theTranslationModelIsUsedUntilTheApiDoesNotKnowIt() = runBlocking {
+        val model = TranslationModel("haiku-x") { "sonnet-y" }
+        val seen = mutableListOf<String>()
+        val reply = model.withFallback {
+            seen += model.current()
+            if (model.current() == "haiku-x") throw ClaudeError.Api(404, "model: haiku-x") else "ok"
+        }
+        assertEquals("ok", reply)
+        assertEquals(listOf("haiku-x", "sonnet-y"), seen)
+        assertEquals("sonnet-y", model.current())
+    }
+
+    @Test fun otherErrorsDoNotChangeTheModel() = runBlocking {
+        val model = TranslationModel("haiku-x") { "sonnet-y" }
+        val failure = runCatching { model.withFallback<String> { throw ClaudeError.Api(500, "overloaded") } }
+        assertTrue(failure.isFailure)
+        assertEquals("haiku-x", model.current())
     }
 }

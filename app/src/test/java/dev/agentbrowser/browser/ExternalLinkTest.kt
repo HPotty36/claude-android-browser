@@ -30,4 +30,14 @@ class ExternalLinkTest {
         assertEquals("kvp.jjy.MispAndroid320", externalLinkLabel("intent://pay?x=1#Intent;scheme=ispmobile;package=kvp.jjy.MispAndroid320;end"))
         assertEquals("ispmobile://pay", externalLinkLabel("intent://pay?x=1#Intent;scheme=ispmobile;end"))
     }
+
+    // A page's link menu opens web pages only: the app's own loads skip the engine's guard against these.
+    @Test fun onlyWebPagesCanBeOpenedFromTheLinkMenu() {
+        listOf("https://example.com/a", "HTTP://EXAMPLE.COM").forEach { assertTrue(it, isHttpLink(it)) }
+        listOf(
+            "file:///data/data/dev.agentbrowser/files/x", "data:text/html,hi", "javascript:alert(1)",
+            "resource://android/assets/agent/content.js", "chrome://global/content/x", "view-source:https://a.b",
+            "about:config", "blob:https://a.b/1", "mailto:a@b.c", "", "example.com",
+        ).forEach { assertFalse(it, isHttpLink(it)) }
+    }
 }

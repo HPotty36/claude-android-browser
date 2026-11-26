@@ -19,10 +19,20 @@ fun withNewLine(text: String, selectionStart: Int, selectionEnd: Int): Pair<Stri
 /**
  * When [new] is [old] with one line break typed just before [cursor], the text without that break; otherwise null.
  * A keyboard app composing Korean takes a hardware Enter itself and types a line break, so the app never sees
- * the key: this is how such an Enter is recognised.
+ * the key: this is how such an Enter is recognised. The syllable being composed ([oldComposition], in [old]) may
+ * be committed in the same change; anything more changing with the break is a paste, not an Enter.
  */
-fun typedLineBreak(old: String, new: String, cursor: Int): String? {
+fun typedLineBreak(old: String, oldComposition: IntRange?, new: String, cursor: Int): String? {
     if (cursor !in 1..new.length || new[cursor - 1] != '\n') return null
-    if (new.count { it == '\n' } != old.count { it == '\n' } + 1) return null
-    return new.removeRange(cursor - 1, cursor)
+    val typed = new.removeRange(cursor - 1, cursor)
+    if (typed == old) return typed
+    val composing = oldComposition?.takeIf { !it.isEmpty() && it.first >= 0 && it.last < old.length } ?: return null
+    val before = old.substring(0, composing.first)
+    val after = old.substring(composing.last + 1)
+    if (!typed.startsWith(before) || !typed.endsWith(after) || typed.length < before.length + after.length) return null
+    val committed = typed.substring(before.length, typed.length - after.length)
+    if ('\n' in committed || committed.length > composing.count() + 1) return null
+    // The break comes right after what was being composed, where the cursor was.
+    if (cursor - 1 != before.length + committed.length) return null
+    return typed
 }

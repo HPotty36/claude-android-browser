@@ -1,5 +1,6 @@
 package dev.agentbrowser
 
+import dev.agentbrowser.translate.TranslationModel
 import dev.agentbrowser.agent.Block
 import dev.agentbrowser.agent.Message
 import dev.agentbrowser.settings.TRANSLATION_MODEL
@@ -52,9 +53,12 @@ class App : Application() {
     }
 
     val translations: PageTranslations by lazy {
-        val client = HttpClaudeClient(settings::apiKeyBlocking, { TRANSLATION_MODEL })
+        // Should the translation model be retired, the chat model takes over rather than every page failing.
+        val model = TranslationModel(TRANSLATION_MODEL) { settings.modelBlocking() }
+        // A chunk's translation can run longer than its source; room for it, so the reply is not cut off.
+        val client = HttpClaudeClient(settings::apiKeyBlocking, model::current, maxTokens = 8_192)
         val translator = Translator(ClaudeTranslationClient { system, user ->
-            client.send(system, listOf(Message("user", listOf(Block.Text(user)))), emptyList())
+            model.withFallback { client.send(system, listOf(Message("user", listOf(Block.Text(user)))), emptyList()) }
                 .content.filterIsInstance<Block.Text>().joinToString("") { it.text }
         })
         PageTranslations(

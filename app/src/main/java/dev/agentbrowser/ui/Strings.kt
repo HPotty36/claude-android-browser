@@ -112,6 +112,8 @@ interface Strings {
     val cancelTranslation: String
     val translatedTapForOriginal: String
     val translationFailed: String
+    val partlyTranslated: String
+    val translateTheRest: String
     val translateNeedsKey: String
     val openInNewTab: String
     val copyLink: String
@@ -258,6 +260,8 @@ object En : Strings {
     override val cancelTranslation = "Cancel translation"
     override val translatedTapForOriginal = "Translated. Show original"
     override val translationFailed = "Translation failed. Try again"
+    override val partlyTranslated = "Some text could not be translated. Try again"
+    override val translateTheRest = "Translate the rest"
     override val translateNeedsKey = "Add an API key in Settings to translate"
     override val openInNewTab = "Open in new tab"
     override val copyLink = "Copy link"
@@ -405,6 +409,8 @@ object Ko : Strings {
     override val cancelTranslation = "번역 취소"
     override val translatedTapForOriginal = "번역됨. 원문 보기"
     override val translationFailed = "번역하지 못했습니다. 다시 시도"
+    override val partlyTranslated = "일부를 번역하지 못했습니다. 다시 시도"
+    override val translateTheRest = "나머지 번역"
     override val translateNeedsKey = "번역하려면 설정에서 API 키를 넣어 주세요"
     override val openInNewTab = "새 탭에서 열기"
     override val copyLink = "링크 복사"

@@ -34,6 +34,48 @@ interface TranslationClient {
 
 data class TranslationResult(val translated: Int, val total: Int)
 
+/** The model answered, but not with one translation for each piece: often a reply cut off at its size limit. */
+class UnreadableTranslation : IllegalStateException("The translation could not be read.")
+
+private const val SENTENCE_END = ".!?"
+private const val SENTENCE_END_WIDE = "。！？"
+
+/**
+ * [text] in parts of at most [maxChars], cut after a sentence (with the spaces that follow it), else after a space,
+ * else wherever the limit falls.
+ */
+fun splitLongText(text: String, maxChars: Int): List<String> {
+    val parts = mutableListOf<String>()
+    var start = 0
+    while (text.length - start > maxChars) {
+        val limit = start + maxChars
+        var sentence = -1
+        var space = -1
+        var at = start
+        while (at < limit) {
+            val c = text[at]
+            at++
+            val ends = c in SENTENCE_END_WIDE || c == '\n' ||
+                (c in SENTENCE_END && (at == text.length || text[at].isWhitespace()))
+            if (c.isWhitespace() || ends) {
+                var end = at
+                while (end < text.length && end < limit && text[end].isWhitespace()) end++
+                if (ends) sentence = end else space = end
+            }
+        }
+        var cut = when {
+            sentence > start -> sentence
+            space > start -> space
+            else -> limit
+        }
+        if (cut < text.length && cut - 1 > start && text[cut - 1].isHighSurrogate()) cut--
+        parts += text.substring(start, cut)
+        start = cut
+    }
+    if (start < text.length) parts += text.substring(start)
+    return parts
+}
+
 /** Groups pieces into requests of about [maxChars]. A piece is never split; one longer than the limit goes alone. */
 fun chunkItems(items: List<TextItem>, maxChars: Int): List<List<TextItem>> {
     val chunks = mutableListOf<MutableList<TextItem>>()
@@ -86,19 +128,67 @@ fun parseTranslations(reply: String, expected: Int): List<String>? {
     return array.map { element -> (element as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null }
 }
 
+/** What one request entry stands for: whole runs of one paragraph, or one part of a run too long for a request. */
+private sealed interface Entry {
+    val text: String
+
+    /** Runs of one paragraph: one goes as it is, several as one string with numbered markers. */
+    class Whole(val runs: List<TextItem>) : Entry {
+        override val text = if (runs.size == 1) runs.single().text else joinPieces(runs.map { it.text })
+    }
+
+    /** Part [index] of [run], whose text is cut into [count] parts. */
+    class Part(val run: TextItem, val index: Int, val count: Int, override val text: String) : Entry
+}
+
 /** Translates a page a chunk at a time, a few chunks at once, putting each back as soon as it is ready. */
 class Translator(
     private val client: TranslationClient,
     private val maxChunkChars: Int = 2_500,
     private val parallel: Int = 3,
 ) {
-    /** The translations, or null when this request failed: its text stays as it was, the rest of the page goes on. */
-    private suspend fun ask(texts: List<String>, target: TranslateTarget): List<String>? = try {
-        client.translate(texts, target)
+    /**
+     * A translation for each of [texts], null where none came. A reply that cannot be read is asked for again in
+     * halves, down to single texts: a long reply cut off at its size limit then fits. Any other failure (a refused
+     * key, a dropped connection) would fail again however small the request, so it is not asked for again.
+     */
+    private suspend fun ask(texts: List<String>, target: TranslateTarget, permits: Semaphore): List<String?> = try {
+        permits.withPermit { client.translate(texts, target) }.takeIf { it.size == texts.size } ?: throw UnreadableTranslation()
     } catch (e: CancellationException) {
         throw e
+    } catch (e: UnreadableTranslation) {
+        if (texts.size == 1) {
+            listOf(null)
+        } else {
+            val half = texts.size / 2
+            ask(texts.subList(0, half), target, permits) + ask(texts.subList(half, texts.size), target, permits)
+        }
     } catch (e: Exception) {
-        null
+        texts.map { null }
+    }
+
+    /** The paragraph's runs as request entries that each fit in a chunk. */
+    private fun unitsOf(runs: List<TextItem>): List<Entry> {
+        val whole = Entry.Whole(runs)
+        if (whole.text.length <= maxChunkChars) return listOf(whole)
+        val units = mutableListOf<Entry>()
+        var current = mutableListOf<TextItem>()
+        fun flush() {
+            if (current.isNotEmpty()) units += Entry.Whole(current)
+            current = mutableListOf()
+        }
+        for (run in runs) {
+            if (run.text.length > maxChunkChars) {
+                flush()
+                val parts = splitLongText(run.text, maxChunkChars)
+                parts.forEachIndexed { index, part -> units += Entry.Part(run, index, parts.size, part) }
+                continue
+            }
+            if (current.isNotEmpty() && Entry.Whole(current + run).text.length > maxChunkChars) flush()
+            current += run
+        }
+        flush()
+        return units
     }
 
     suspend fun translate(
@@ -107,35 +197,42 @@ class Translator(
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): TranslationResult = coroutineScope {
         val items = page.collect()
-        // A paragraph goes as one string, so the model sees whole sentences and spaces them as it should.
-        val groups = groupByBlock(items)
-        val units = groups.mapIndexed { index, group ->
-            TextItem(index, if (group.size == 1) group.single().text else joinPieces(group.map { it.text }))
-        }
-        val chunks = chunkItems(units, maxChunkChars)
+        // A paragraph goes as one string, so the model sees whole sentences and spaces them as it should. One too
+        // long for a request goes in parts, so no reply runs past its size limit.
+        val units = groupByBlock(items).flatMap { unitsOf(it) }
+        val chunks = chunkItems(units.mapIndexed { index, unit -> TextItem(index, unit.text) }, maxChunkChars)
+            .map { chunk -> chunk.map { units[it.id] } }
         val permits = Semaphore(parallel)
         val progress = Mutex()
+        // The parts of each long run that have come back; the run is put back once all of them have.
+        val parts = mutableMapOf<Int, Array<String?>>()
         var done = 0
         var translated = 0
         chunks.map { chunk ->
             async {
-                val texts = permits.withPermit { ask(chunk.map { it.text }, target) }
+                val texts = ask(chunk.map { it.text }, target, permits)
                 val back = mutableListOf<TextItem>()
-                if (texts != null && texts.size == chunk.size) {
-                    val retry = mutableListOf<TextItem>()
-                    chunk.forEachIndexed { index, unit ->
-                        val group = groups[unit.id]
-                        if (group.size == 1) {
-                            back += TextItem(group.single().id, texts[index])
+                val retry = mutableListOf<TextItem>()
+                chunk.forEachIndexed { index, unit ->
+                    val text = texts[index] ?: return@forEachIndexed
+                    when (unit) {
+                        is Entry.Whole -> if (unit.runs.size == 1) {
+                            back += TextItem(unit.runs.single().id, text)
                         } else {
-                            val pieces = splitPieces(texts[index], group.size)
-                            if (pieces != null) group.forEachIndexed { at, item -> back += TextItem(item.id, pieces[at]) } else retry += group
+                            val pieces = splitPieces(text, unit.runs.size)
+                            if (pieces != null) unit.runs.forEachIndexed { at, run -> back += TextItem(run.id, pieces[at]) } else retry += unit.runs
+                        }
+                        is Entry.Part -> progress.withLock {
+                            val arrived = parts.getOrPut(unit.run.id) { arrayOfNulls(unit.count) }
+                            arrived[unit.index] = text
+                            if (arrived.all { it != null }) back += TextItem(unit.run.id, joinParts(arrived.map { it!! }))
                         }
                     }
-                    // A paragraph whose markers came back broken is asked for again, piece by piece.
-                    if (retry.isNotEmpty()) {
-                        val again = permits.withPermit { ask(retry.map { it.text }, target) }
-                        if (again != null && again.size == retry.size) retry.forEachIndexed { at, item -> back += TextItem(item.id, again[at]) }
+                }
+                // A paragraph whose markers came back broken is asked for again, piece by piece.
+                if (retry.isNotEmpty()) {
+                    ask(retry.map { it.text }, target, permits).forEachIndexed { at, text ->
+                        if (text != null) back += TextItem(retry[at].id, text)
                     }
                 }
                 if (back.isNotEmpty()) page.apply(back)
@@ -148,6 +245,12 @@ class Translator(
         }.awaitAll()
         TranslationResult(translated, items.size)
     }
+
+    /** A long run's translated parts as one text, a space between sentences and the run's own spaces at its ends. */
+    private fun joinParts(parts: List<String>): String {
+        val body = parts.map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
+        return parts.first().takeWhile { it.isWhitespace() } + body + parts.last().takeLastWhile { it.isWhitespace() }
+    }
 }
 
 /**
@@ -158,7 +261,7 @@ class ClaudeTranslationClient(private val ask: suspend (system: String, user: St
     override suspend fun translate(texts: List<String>, target: TranslateTarget): List<String> {
         val user = JsonArray(texts.map { JsonPrimitive(it) }).toString()
         val reply = ask(systemPrompt(target), user)
-        return parseTranslations(reply, texts.size) ?: throw IllegalStateException("The translation could not be read.")
+        return parseTranslations(reply, texts.size) ?: throw UnreadableTranslation()
     }
 
     private fun systemPrompt(target: TranslateTarget) = """

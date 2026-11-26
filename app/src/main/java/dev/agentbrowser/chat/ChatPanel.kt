@@ -1,7 +1,8 @@
 package dev.agentbrowser.chat
 
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
+import android.os.SystemClock
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.key.onInterceptKeyBeforeSoftKeyboard
 import androidx.compose.ui.unit.Dp
 import android.view.KeyCharacterMap
 import android.view.KeyEvent as AndroidKeyEvent
@@ -79,6 +80,7 @@ import androidx.compose.ui.unit.sp
 import dev.agentbrowser.ui.PillField
 
 /** The lower half of the browser screen: the conversation with Claude and what it is doing to the page. */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ChatPanel(
     model: ChatViewModel,
@@ -108,10 +110,11 @@ fun ChatPanel(
     LaunchedEffect(focusRequests) {
         if (focusRequests != null) for (request in focusRequests) runCatching { inputFocus.requestFocus() }
     }
-    // A keyboard plugged in (USB, Bluetooth, a dock): Enter sends, Shift+Enter breaks the line.
-    val configuration = LocalConfiguration.current
-    val hardwareKeyboard = configuration.keyboard == Configuration.KEYBOARD_QWERTY
-    var shiftHeld by remember { mutableStateOf(false) }
+    // A keyboard plugged in (USB, Bluetooth, a dock): Enter sends, Shift+Enter breaks the line. While composing
+    // Korean the keyboard app takes that Enter and types a line break instead, but the key is seen here before the
+    // keyboard app gets it: this is when. A line break from the on-screen keyboard comes with no such key, and
+    // Shift+Enter is not counted, so both stay line breaks.
+    val hardwareEnterAt = remember { longArrayOf(0L) }
     val submit = {
         // While Claude works the model takes nothing, so the draft stays for later.
         if (!running && draft.text.isNotBlank()) {
@@ -220,13 +223,16 @@ fun ChatPanel(
                 PillField(
                     value = draft,
                     onValueChange = { value ->
-                        // With a keyboard plugged in, Enter sends even when the keyboard app turned it into a line break.
-                        val typed = if (hardwareKeyboard && !shiftHeld) {
-                            typedLineBreak(draft.text, value.text, value.selection.start).takeIf { value.selection.collapsed }
+                        // A plugged-in keyboard's Enter sends even when the keyboard app turned it into a line break.
+                        val entered = hardwareEnterAt[0] != 0L && SystemClock.uptimeMillis() - hardwareEnterAt[0] < 1_000
+                        val typed = if (entered) {
+                            typedLineBreak(draft.text, draft.composition?.let { it.min until it.max }, value.text, value.selection.start)
+                                .takeIf { value.selection.collapsed }
                         } else {
                             null
                         }
                         if (typed != null) {
+                            hardwareEnterAt[0] = 0L
                             draft = TextFieldValue(typed, TextRange(value.selection.start - 1))
                             submit()
                         } else {
@@ -237,10 +243,17 @@ fun ChatPanel(
                     minHeight = 44.dp,
                     singleLine = false,
                     maxLines = 4,
-                    modifier = Modifier.weight(1f).focusRequester(inputFocus).onPreviewKeyEvent { event ->
+                    modifier = Modifier.weight(1f).focusRequester(inputFocus).onInterceptKeyBeforeSoftKeyboard { event ->
                         val key = event.nativeKeyEvent
-                        // Shift+Enter reaches the keyboard app, not here; its Shift does, and says a line break is wanted.
-                        shiftHeld = key.isShiftPressed
+                        val fromKeyboard = key.deviceId != KeyCharacterMap.VIRTUAL_KEYBOARD
+                        if (fromKeyboard && key.action == AndroidKeyEvent.ACTION_DOWN &&
+                            sendsMessage(key.keyCode, key.isShiftPressed, key.isCtrlPressed, key.isAltPressed)
+                        ) {
+                            hardwareEnterAt[0] = SystemClock.uptimeMillis()
+                        }
+                        false
+                    }.onPreviewKeyEvent { event ->
+                        val key = event.nativeKeyEvent
                         // An on-screen keyboard's Enter stays a line break: there the button sends.
                         val hardware = key.deviceId != KeyCharacterMap.VIRTUAL_KEYBOARD
                         val down = key.action == AndroidKeyEvent.ACTION_DOWN
@@ -248,7 +261,10 @@ fun ChatPanel(
                         when {
                             !hardware -> false
                             sendsMessage(key.keyCode, key.isShiftPressed, key.isCtrlPressed, key.isAltPressed) -> {
-                                if (down && key.repeatCount == 0) submit()
+                                if (down && key.repeatCount == 0) {
+                                    hardwareEnterAt[0] = 0L
+                                    submit()
+                                }
                                 true
                             }
                             enter -> {

@@ -476,7 +476,7 @@ private fun CommandBar(
                     value = draft,
                     onValueChange = { value ->
                         // A keyboard app composing Korean answers a hardware Enter by typing a line break.
-                        val entered = typedLineBreak(draft.text, value.text, value.selection.start)
+                        val entered = typedLineBreak(draft.text, draft.composition?.let { it.min until it.max }, value.text, value.selection.start)
                         when {
                             entered != null -> go(entered)
                             // Pasted lines become one: the address has no room for a line break.
@@ -543,6 +543,10 @@ private fun CommandBar(
                         }
                         TranslationState.Failed -> IconButton(onClick = onTranslate) {
                             Icon(Icons.Outlined.Translate, contentDescription = s.translationFailed, tint = colors.error)
+                        }
+                        // Some requests failed: the page is mostly translated, and a tap tries the rest again.
+                        is TranslationState.PartlyTranslated -> IconButton(onClick = onTranslate) {
+                            Icon(Icons.Outlined.Translate, contentDescription = s.partlyTranslated, tint = colors.error)
                         }
                     }
                     if (loading) {
@@ -628,6 +632,10 @@ private fun CommandBar(
                                 item(s.translatePage, Icons.Outlined.Translate, enabled = !onStartPage, action = onTranslate)
                             is TranslationState.Working -> item(s.cancelTranslation, Icons.Outlined.Translate, action = onShowOriginal)
                             TranslationState.Translated -> item(s.showOriginal, Icons.Outlined.Translate, action = onShowOriginal)
+                            is TranslationState.PartlyTranslated -> {
+                                item(s.translateTheRest, Icons.Outlined.Translate, action = onTranslate)
+                                item(s.showOriginal, Icons.Outlined.Translate, action = onShowOriginal)
+                            }
                         }
                         item(s.bookmarks, Icons.Outlined.Bookmarks, action = onBookmarks)
                         item(s.home, Icons.Outlined.Home, enabled = !onStartPage, action = controller::home)
